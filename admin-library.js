@@ -71,6 +71,23 @@ function notice(text, error = false) {
   $('notice').setAttribute('role', error ? 'alert' : 'status');
   timer = setTimeout(() => { $('notice').hidden = true; }, 5000);
 }
+function googleSignInMessage(error) {
+  switch (error?.code) {
+    case 'auth/popup-blocked':
+      return 'Your browser blocked Google sign-in. Allow pop-ups for this site or request an email sign-in link below.';
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return 'Google sign-in was cancelled. Try again or request an email sign-in link below.';
+    case 'auth/unauthorized-domain':
+    case 'auth/operation-not-allowed':
+      return 'Google sign-in needs to be configured for this website. Use an email sign-in link or contact your administrator.';
+    case 'auth/network-request-failed':
+      return 'Google sign-in could not connect. Check your connection and try again.';
+    default:
+      return 'Google sign-in could not finish. Try again or request an email sign-in link below.';
+  }
+}
+
 function authControls(busy) {
   authBusy = busy;
   for (const id of ['google','email','email-submit','email-retry']) $(id).disabled = !ready || busy;
@@ -1704,7 +1721,7 @@ $('google').onclick = async () => {
   authControls(true); if (emailLink) resetLink();
   const provider = new GoogleAuthProvider(); provider.setCustomParameters({prompt:'select_account'});
   try { await signInWithPopup(auth,provider); }
-  catch { notice('Google sign-in could not finish. Allow pop-ups and try again.',true); }
+  catch (error) { notice(googleSignInMessage(error), true); }
   finally { authControls(false); }
 };
 $('email-form').onsubmit = async event => {
