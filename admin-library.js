@@ -33,6 +33,8 @@ const requestSponsorActivate = httpsCallable(getFunctions(app, config.region), '
 const requestSponsorPause = httpsCallable(getFunctions(app, config.region), 'pause_sponsor');
 let sponsorStatusRequest = 0, sponsorStatusBusy = null, sponsorStatusPanel = null;
 const requestSponsorCreate = httpsCallable(getFunctions(app, config.region), 'create_sponsor');
+const requestSponsorEdit = httpsCallable(getFunctions(app, config.region), 'edit_sponsor');
+const requestRecordManage = httpsCallable(getFunctions(app, config.region), 'manage_ad_record');
 let sponsorCreate = null, sponsorCreateBusy = false, sponsorCreateTicket = 0;
 const requestCreativePause = httpsCallable(getFunctions(app, config.region), 'pause_creative');
 let creativePauseBusy = false, creativePauseRequest = 0;
@@ -54,11 +56,11 @@ const labels = { name:'Name', sponsor_id:'Sponsor', campaign_id:'Campaign', enab
   creative_overrides:'Exam/module creative overrides', rotation_weight:'Creative rotation weight', eyebrow_text:'Eyebrow text',
   headline:'Headline', body_text:'Body text', cta_text:'Button text', click_url:'Destination link', disclaimer_text:'Disclosure',
   media_type:'Media type', image_url:'Image link', video_url:'Video link', video_poster_image_url:'Video poster link',
-  video_muted_by_default:'Video muted by default' };
+  display_format:'Display format', video_muted_by_default:'Video muted by default' };
 const fields = {
   sponsors:['name','enabled','logo_url'],
   campaigns:['name','sponsor_id','approved','enabled','start_at','end_at','platforms','placement','exam','module','exclusive','share_schedule','creative_overrides'],
-  creatives:['name','campaign_id','approved','enabled','start_at','end_at','platforms','rotation_weight','eyebrow_text','headline','body_text','cta_text','click_url','disclaimer_text','media_type','image_url','video_url','video_poster_image_url','video_muted_by_default']
+  creatives:['name','campaign_id','approved','enabled','start_at','end_at','platforms','rotation_weight','eyebrow_text','headline','body_text','cta_text','click_url','disclaimer_text','display_format','media_type','image_url','video_url','video_poster_image_url','video_muted_by_default']
 };
 function node(tag, text, className) {
   const element = document.createElement(tag);
@@ -129,6 +131,7 @@ function validateLibrary(data) {
     for (const row of data[type]) {
       if (!row || typeof row.id !== 'string' || !row.id || row.id.length > 200 || row.id.includes('/') || seen.has(row.id)) throw Error('Invalid record');
       seen.add(row.id);
+      if (row.archived != null && typeof row.archived !== 'boolean') throw Error('Invalid archive state');
       for (const key of fields[type]) {
         const value = row[key];
         if (value == null) continue;
@@ -195,6 +198,7 @@ function detailField(list,title,value,wide = false) {
   field.append(node('dt',title),node('dd',value)); list.append(field); return field;
 }
 function display(key, value) {
+  if (key === 'display_format') return value === 'fullscreen' ? 'Fullscreen' : 'Square';
   if (value == null) return 'Not set';
   if (['start_at','end_at'].includes(key)) {
     const when = new Date(value);
@@ -215,6 +219,7 @@ function detail(row) {
   ++publishedPreviewRequest;
   ++rollbackRequest; rollbackPanel = null;
   $('details').replaceChildren(node('h2', row.name || row.id,'workspace-title'));
+  $('details').append(node('p',row.archived ? 'Archived · Cannot serve ads' : row.enabled ? 'Enabled' : 'Disabled','record-state'));
   const groups = section === 'campaigns' ? [
     ['Overview',['name','sponsor_id','approved','enabled']],
     ['Schedule',['start_at','end_at','share_schedule']],
@@ -223,7 +228,7 @@ function detail(row) {
     ['Overview',['name','campaign_id','approved','enabled','rotation_weight']],
     ['Schedule',['start_at','end_at']],['Targeting',['platforms']],
     ['Content',['eyebrow_text','headline','body_text','cta_text','click_url','disclaimer_text']],
-    ['Media',['media_type','image_url','video_url','video_poster_image_url','video_muted_by_default']]
+    ['Media',['display_format','media_type','image_url','video_url','video_poster_image_url','video_muted_by_default']]
   ] : [['Overview',fields[section]]];
   if (!groups.some(([title]) => title === detailTab)) detailTab = 'Overview';
   const panes = [], buttons = [], nav = node('nav',undefined,'detail-tabs');
@@ -290,6 +295,9 @@ function detail(row) {
     related.append(button); $('details').append(related);
   }
   if (section === 'sponsors' && typeof row.enabled === 'boolean') {
+    const edit = node('button','Edit sponsor','related'); edit.type = 'button';
+    edit.onclick = () => sponsorEditPanel(row);
+    $('details').append(edit);
     const action = row.enabled ? 'pause' : 'activate';
     const button = node('button',row.enabled ? 'Review sponsor pause' : 'Review sponsor activation','related'); button.type = 'button';
     button.onclick = () => {
@@ -359,6 +367,63 @@ function detail(row) {
     $('details').append(approve);
   }
   if (section === 'creatives') $('details').append(node('p','Weights control creative rotation within the selected campaign, not the campaign\u2019s exposure share.','muted'));
+  recordActions(row,section === 'creatives' ? 'creative' : section === 'campaigns' ? 'campaign' : 'sponsor');
+}
+function recordActions(row,kind) {
+  const area = node('div',undefined,'lifecycle-actions');
+  const archived = row.archived === true;
+  const archive = node('button',archived ? 'Restore from archive' : 'Archive ' + kind);
+  archive.type = 'button'; archive.disabled = !archived && row.enabled !== false;
+  const remove = node('button','Delete ' + kind,'danger'); remove.type = 'button'; remove.disabled = !archived;
+  for (const button of [archive,remove]) {
+    const operation = button === remove ? 'delete' : archived ? 'restore' : 'archive';
+    button.onclick = () => manageRecord(kind,row.id,operation,area);
+  }
+  area.append(archive,remove);
+  if (!archived && row.enabled !== false) area.append(node('p','Pause this record before archiving it.','muted'));
+  if (!archived) area.append(node('p','Archive a paused record before deleting it.','muted'));
+  $('details').append(area);
+  if (archived) for (const button of $('details').querySelectorAll('button.related')) {
+    if (/^(Resume|Review .*activation|Review .*approval|Restore previous settings)/.test(button.textContent)) button.disabled = true;
+  }
+}
+async function manageRecord(kind,id,operation,area) {
+  if (!user || !catalog || editor) return;
+  const run = generation, uid = user.uid, active = () => generation === run && user?.uid === uid &&
+    area.isConnected && selected === id;
+  const panel = node('section',undefined,'note'); area.querySelector('.lifecycle-review')?.remove();
+  panel.classList.add('lifecycle-review'); area.append(panel);
+  panel.append(node('p','Checking linked records and report history...'));
+  try {
+    const prepared = (await requestRecordManage({action:'prepare',kind,target_id:id,operation})).data;
+    if (!active()) return;
+    if (prepared?.environment !== config.environment || prepared.kind !== kind || prepared.target_id !== id ||
+        prepared.operation !== operation || !/^[0-9a-f]{64}$/.test(prepared.confirmation || '')) throw Error('Invalid review');
+    panel.replaceChildren(node('h3','Review ' + operation),node('p',prepared.name),node('p',prepared.message));
+    const confirm = node('button','Confirm ' + operation,operation === 'delete' ? 'danger' : '');
+    confirm.type = 'button'; panel.append(confirm);
+    confirm.onclick = async () => {
+      if (!active() || confirm.disabled) return;
+      if (operation === 'delete' && !window.confirm('Permanently delete this archived ' + kind + '? This cannot be undone.')) return;
+      confirm.disabled = true; panel.append(node('p','Updating record...'));
+      try {
+        const receipt = (await requestRecordManage({action:operation,kind,target_id:id,
+          confirmation:prepared.confirmation})).data;
+        if (!active()) return;
+        if (receipt?.environment !== config.environment || receipt.kind !== kind || receipt.target_id !== id ||
+            receipt.operation !== operation || !/^[0-9a-f]{64}$/.test(receipt.history_id || '')) throw Error('Invalid receipt');
+        await load(); if (user?.uid !== uid || !catalog) return;
+        section = kind === 'draft' ? 'drafts' : kind === 'creative' ? 'creatives' : kind + 's';
+        selected = operation === 'delete' ? null : id; render();
+        notice(kind + ' ' + (operation === 'delete' ? 'deleted' : operation === 'archive' ? 'archived' : 'restored') + '.');
+      } catch (error) {
+        if (active()) panel.append(node('p',error?.code?.includes('aborted') ?
+          'Record changed. Refresh and review again.' : 'Could not complete this action. Refresh the library and review linked records.'));
+      } finally { confirm.disabled = false; }
+    };
+  } catch (error) {
+    if (active()) panel.replaceChildren(node('p',error?.message || 'This record cannot be changed yet. Check linked records and delivery status.'));
+  }
 }
 async function approveCampaign(row,panel,confirmation = null,preparedTicket = null,acknowledged = false) {
   if (!user || !catalog || editor || campaignApprovalBusyTicket !== null ||
@@ -782,6 +847,68 @@ function sponsorCreateLock(busy) {
   $('sponsor-create-review').disabled = busy;
   $('sponsor-create-close').disabled = busy;
 }
+function sponsorEditPanel(row) {
+  if (!user || !catalog || editor || section !== 'sponsors' || selected !== row.id) return;
+  const existing = $('sponsor-edit-panel'); if (existing) existing.remove();
+  const panel = node('section',undefined,'note'); panel.id = 'sponsor-edit-panel';
+  panel.append(node('h3','Edit sponsor'));
+  const form = node('form'), nameLabel = node('label','Name'), logoLabel = node('label','HTTPS logo link');
+  const nameInput = node('input'), logoInput = node('input');
+  nameInput.required = logoInput.required = true; nameInput.maxLength = 200;
+  logoInput.maxLength = 2048; logoInput.type = 'url';
+  nameInput.value = row.name; logoInput.value = row.logo_url;
+  nameLabel.append(nameInput); logoLabel.append(logoInput);
+  const status = node('p'); status.setAttribute('role','status');
+  const review = node('button','Review changes'); review.type = 'submit';
+  const summary = node('div');
+  form.append(nameLabel,logoLabel,review,status,summary); panel.append(form); $('details').append(panel);
+  let busy = false, ticket = 0;
+  nameInput.oninput = logoInput.oninput = () => { ++ticket; summary.replaceChildren(); status.textContent = ''; };
+  form.onsubmit = async event => {
+    event.preventDefault(); if (busy || !form.reportValidity()) return;
+    const fields = {name:nameInput.value.trim(),logo_url:logoInput.value.trim()};
+    if (fields.name === row.name && fields.logo_url === row.logo_url) {
+      status.textContent = 'Change the name or logo link to continue.'; return;
+    }
+    const run = generation, uid = user.uid, id = row.id, current = ++ticket;
+    const active = () => generation === run && user?.uid === uid && panel.isConnected &&
+      section === 'sponsors' && selected === id && ticket === current;
+    busy = true; review.disabled = true; summary.replaceChildren(); status.textContent = 'Preparing sponsor review...';
+    try {
+      const prepared = (await requestSponsorEdit({action:'prepare',target_id:id,fields})).data;
+      if (!active()) return;
+      if (prepared?.environment !== config.environment || prepared.target_id !== id ||
+          !/^[0-9a-f]{64}$/.test(prepared.confirmation || '') ||
+          prepared.after?.name !== fields.name || prepared.after?.logo_url !== fields.logo_url ||
+          prepared.after?.enabled !== row.enabled) throw Error('Invalid review');
+      summary.append(node('p','Name: ' + row.name + ' → ' + fields.name),
+        node('p','Logo: ' + row.logo_url + ' → ' + fields.logo_url),
+        node('p','Enabled remains ' + (row.enabled ? 'Yes' : 'No') + '. Check that the new logo image loads before confirming.'));
+      const confirm = node('button','Confirm sponsor changes'); confirm.type = 'button'; summary.append(confirm);
+      confirm.onclick = async () => {
+        if (busy || !active() || fields.name !== nameInput.value.trim() || fields.logo_url !== logoInput.value.trim()) return;
+        busy = true; confirm.disabled = review.disabled = true; status.textContent = 'Saving sponsor changes...';
+        try {
+          const receipt = (await requestSponsorEdit({action:'update',target_id:id,fields,confirmation:prepared.confirmation})).data;
+          if (!active()) return;
+          if (receipt?.environment !== config.environment || receipt.target_id !== id || receipt.updated !== true ||
+              !/^[0-9a-f]{64}$/.test(receipt.history_id || '')) throw Error('Invalid receipt');
+          await load(); if (user?.uid !== uid || !catalog) return;
+          section = 'sponsors'; selected = id; remembered.sponsors = id; rememberSelection(); render();
+          notice('Sponsor details updated. Delivery status was not changed.');
+        } catch (error) {
+          if (active()) status.textContent = error?.code?.includes('aborted') ?
+            'Sponsor changed. Refresh the library and review again.' : 'Update could not be confirmed. Refresh to check its current details.';
+        } finally { busy = false; if (panel.isConnected) { review.disabled = false; confirm.disabled = false; } }
+      };
+      status.textContent = 'Review ready. Nothing has changed yet.';
+    } catch (error) {
+      if (active()) status.textContent = error?.code?.includes('aborted') ? 'Sponsor changed. Refresh and review again.' :
+        'Review could not be prepared. Check the name, HTTPS logo link, and connection.';
+    } finally { busy = false; if (panel.isConnected) review.disabled = false; }
+  };
+  nameInput.focus(); panel.scrollIntoView?.({block:'nearest'});
+}
 function sponsorCreateInvalidate() {
   if (!sponsorCreate || sponsorCreateBusy) return;
   sponsorCreate.prepared = null; ++sponsorCreateTicket;
@@ -999,7 +1126,7 @@ function updateCampaigns() {
 }
 function matchesStatus(row) {
   const status = $('record-status').value;
-  return status === 'all' || status === 'approved' && row.approved === true || status === 'unapproved' && row.approved === false || status === 'enabled' && row.enabled === true || status === 'disabled' && row.enabled === false;
+  return status === 'all' || status === 'archived' && row.archived === true || status === 'active' && row.archived !== true || status === 'approved' && row.approved === true || status === 'unapproved' && row.approved === false || status === 'enabled' && row.enabled === true || status === 'disabled' && row.enabled === false;
 }
 function renderTable(rows) {
   const columns = section === 'campaigns' ? ['Campaign','Approval','Enabled','Platforms','Exposure share','Ad creatives'] :
@@ -1013,7 +1140,9 @@ function renderTable(rows) {
     const td = node('td'), button = node('button',row.name || row.id,'name-button');
     button.setAttribute('aria-pressed',String(row.id === selected)); button.onclick = () => selectRecord(row.id); td.append(button);
     const parent = section === 'campaigns' ? name('sponsors',row.sponsor_id) : section === 'creatives' ? name('campaigns',row.campaign_id) : row.id;
-    td.append(node('small',parent)); tr.append(td);
+    td.append(node('small',parent));
+    if (row.archived || section === 'drafts' && row.status === 'archived') td.append(node('small','Archived'));
+    tr.append(td);
     const approval = value => { const cell = node('td'); cell.append(node('span',value === true ? 'Approved' : value === false ? 'Not approved' : 'Not set',value === true ? 'badge' : 'badge draft')); return cell; };
     const enabled = value => node('td',value === true ? 'Yes' : value === false ? 'No' : 'Not set');
     if (section === 'campaigns') {
@@ -1035,7 +1164,13 @@ function render() {
   $('campaign-count').textContent = String(catalog.campaigns.length);
   $('creative-count').textContent = String(catalog.creatives.length);
   $('draft-count').textContent = String(drafts.length);
-  $('record-status').disabled = section === 'drafts';
+  $('campaign-subtotal').textContent = catalog.campaigns.filter(row => row.enabled && !row.archived).length + ' enabled · ' + catalog.campaigns.filter(row => row.archived).length + ' archived';
+  $('creative-subtotal').textContent = catalog.creatives.filter(row => row.enabled && row.approved && !row.archived).length + ' approved and enabled';
+  $('draft-subtotal').textContent = 'Not served to users';
+  $('guide-sponsor-status').textContent = catalog.sponsors.filter(row => row.enabled && !row.archived).length + ' enabled';
+  $('guide-campaign-status').textContent = catalog.campaigns.filter(row => row.enabled && row.approved && !row.archived).length + ' active';
+  $('guide-creative-status').textContent = catalog.creatives.filter(row => row.enabled && row.approved && !row.archived).length + ' active';
+  $('record-status').disabled = false;
   $('tab-drafts').setAttribute('aria-pressed',String(section === 'drafts'));
   $('sponsor-filter').disabled = section === 'drafts';
   if (section === 'drafts') { renderDrafts(); return; }
@@ -1074,7 +1209,7 @@ async function load() {
   } finally { if (run === generation) $('refresh').disabled = false; }
 }
 function validDraft(value, full = false) {
-  if (!value || value.environment !== config.environment || value.status !== 'draft' || !['campaign','creative'].includes(value.kind) ||
+  if (!value || value.environment !== config.environment || !['draft','archived'].includes(value.status) || !['campaign','creative'].includes(value.kind) ||
       typeof value.id !== 'string' || !value.id || value.id.includes('/') || value.id.length > 200 ||
       !Number.isSafeInteger(value.revision) || value.revision < 1 ||
       (value.target_id !== null && (typeof value.target_id !== 'string' || !value.target_id || value.target_id.includes('/'))) ||
@@ -1104,7 +1239,10 @@ function draftMetadata(draft) {
 function renderDrafts() {
   for (const type of Object.keys(fields)) $('tab-' + type).setAttribute('aria-pressed','false');
   $('campaign-filter').disabled = true;
-  const rows = drafts.filter(matchesSearch), currentDraft = chooseRow(rows);
+  const status = $('record-status').value;
+  const rows = drafts.filter(matchesSearch).filter(row => status === 'all' ||
+    status === 'archived' && row.status === 'archived' || status === 'active' && row.status === 'draft');
+  const currentDraft = chooseRow(rows);
   $('summary').textContent = rows.length + ' drafts \u00b7 Drafts are shown separately from catalog filters and do not serve ads.';
   renderTable(rows); $('details').replaceChildren();
   const draft = currentDraft;
@@ -1112,13 +1250,24 @@ function renderDrafts() {
   $('details').append(node('h2',draft.name));
   const metadata = node('dl');
   for (const [title,value] of [['Saved',localTime(draft.updated_at)],['Revision',String(draft.revision)],
-    ['Staff ID',draft.updated_by],['Draft ID',draft.id],['Status',draft.target_id ? 'Draft of existing record: ' + draft.target_id : 'Draft for a new record']]) {
+    ['Staff ID',draft.updated_by],['Draft ID',draft.id],['Status',draft.status === 'archived' ? 'Archived' : draft.target_id ? 'Draft of existing record: ' + draft.target_id : 'Draft for a new record']]) {
     detailField(metadata,title,value);
   }
   $('details').append(metadata);
   const button = node('button','Open draft','related');
+  button.disabled = draft.status === 'archived';
   button.onclick = () => readDraft(draft.id, button);
   $('details').append(button);
+  const area = node('div',undefined,'lifecycle-actions');
+  const archive = node('button',draft.status === 'archived' ? 'Restore draft' : 'Archive draft');
+  archive.onclick = () => manageRecord('draft',draft.id,draft.status === 'archived' ? 'restore' : 'archive',area);
+  area.append(archive);
+  if (draft.status === 'archived') {
+    const remove = node('button','Delete draft','danger');
+    remove.onclick = () => manageRecord('draft',draft.id,'delete',area);
+    area.append(remove);
+  }
+  $('details').append(area);
 }
 async function readDraft(id, button) {
   const run = generation, uid = user?.uid, ticket = ++draftRequest;
@@ -1170,6 +1319,11 @@ function editField(parent, key, value, choices = null) {
       const wrap = node('label'); wrap.append(input,document.createTextNode(text)); control.append(wrap); return input;
     });
     read = () => inputs.filter(input => input.checked).map(input => input.value);
+  } else if (key === 'display_format') {
+    control = node('select');
+    control.append(new Option('Square','square'),new Option('Fullscreen','fullscreen'));
+    control.value = value ?? 'square';
+    read = () => value == null && control.value === 'square' ? null : control.value;
   } else if (choices || ['exclusive','video_muted_by_default','media_type'].includes(key)) {
     control = node('select'); control.append(new Option('Not set',''));
     const options = choices || (key === 'media_type' ? [['image','Image'],['video','Video']] : [['true','Yes'],['false','No']]);
@@ -1245,7 +1399,7 @@ function openEditor(draft) {
     grid.append(node('p','Rotation weight applies within a campaign, not to its exposure share.','wide field-help'));
     for (const [title,subtitle,keys] of [
       ['Copy','Headline, body, button and link',['eyebrow_text','headline','body_text','disclaimer_text','cta_text','click_url']],
-      ['Media links','Type, links and mute setting',['media_type','video_muted_by_default','image_url','video_url','video_poster_image_url']]
+      ['Media links','Format, type, links and mute setting',['display_format','media_type','video_muted_by_default','image_url','video_url','video_poster_image_url']]
     ]) {
       const panel = disclosure(title,subtitle,keys.length + ' fields');
       const content = node('div',undefined,'field-grid'); panel.append(content); root.append(panel);
@@ -1663,6 +1817,9 @@ $('sponsor-create-close').onclick = () => {
 };
 $('new-campaign').onclick = () => openEditor({kind:'campaign',target_id:null,fields:{}});
 $('new-creative').onclick = () => openEditor({kind:'creative',target_id:null,fields:{}});
+$('guide-sponsor').onclick = () => { switchSection('sponsors'); openSponsorCreate(); };
+$('guide-campaign').onclick = () => { switchSection('campaigns'); $('new-campaign').click(); };
+$('guide-creative').onclick = () => { switchSection('creatives'); $('new-creative').click(); };
 $('tab-drafts').onclick = () => switchSection('drafts');
 $('reload-draft').onclick = () => {
   if (editor?.id && !draftBusy && (!dirty || window.confirm('Discard your unsaved changes and load the latest saved version?'))) readDraft(editor.id,$('reload-draft'));
