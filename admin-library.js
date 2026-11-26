@@ -1127,7 +1127,7 @@ function updateCampaigns() {
   }
 }
 function matchesStatus(row) {
-  const status = archiveMode ? 'archived' : $('record-status').value;
+  const status = $('record-status').value;
   return status === 'all' || status === 'archived' && row.archived === true || status === 'active' && row.archived !== true || status === 'approved' && row.approved === true || status === 'unapproved' && row.approved === false || status === 'enabled' && row.enabled === true || status === 'disabled' && row.enabled === false;
 }
 function renderTable(rows) {
@@ -1242,7 +1242,7 @@ function draftMetadata(draft) {
 function renderDrafts() {
   for (const type of Object.keys(fields)) $('tab-' + type).setAttribute('aria-pressed','false');
   $('campaign-filter').disabled = true;
-  const status = $('record-status').value;
+  const status = archiveMode ? 'archived' : ($('record-status').value === 'all' ? 'active' : $('record-status').value);
   const rows = drafts.filter(matchesSearch).filter(row => status === 'all' ||
     status === 'archived' && row.status === 'archived' || status === 'active' && row.status === 'draft');
   const currentDraft = chooseRow(rows);
