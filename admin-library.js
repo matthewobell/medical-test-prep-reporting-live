@@ -1174,7 +1174,7 @@ function render() {
   $('guide-creative-status').textContent = catalog.creatives.filter(row => row.enabled && row.approved && !row.archived).length + ' active';
   $('record-status').disabled = archiveMode;
   $('tab-archive').setAttribute('aria-pressed',String(archiveMode));
-  $('tab-drafts').setAttribute('aria-pressed',String(section === 'drafts'));
+  $('tab-drafts').setAttribute('aria-pressed',String(section === 'drafts' && !archiveMode));
   $('sponsor-filter').disabled = section === 'drafts';
   if (section === 'drafts') { renderDrafts(); return; }
   const sponsor = $('sponsor-filter').value, campaign = $('campaign-filter').value;
@@ -1183,7 +1183,7 @@ function render() {
   const rows = catalog[section].filter(row => !archiveMode || row.archived === true).filter(row => section === 'sponsors' ? sponsor === 'all' || row.id === sponsor :
     section === 'campaigns' ? campaignIds.has(row.id) : campaignIds.has(row.campaign_id)).filter(matchesSearch).filter(matchesStatus);
   const currentRow = chooseRow(rows);
-  for (const type of Object.keys(fields)) $('tab-' + type).setAttribute('aria-pressed',String(section === type));
+  for (const type of Object.keys(fields)) $('tab-' + type).setAttribute('aria-pressed',String(section === type && !archiveMode));
   $('campaign-filter').disabled = section === 'sponsors';
   $('summary').textContent = rows.length + ' ' + section + ' \u00b7 ' + catalog.sponsors.length + ' sponsors, ' + catalog.campaigns.length + ' campaigns, ' + catalog.creatives.length + ' creatives in this ' + config.catalogLabel;
   renderTable(rows);
