@@ -860,9 +860,11 @@ function sponsorEditPanel(row) {
   nameLabel.append(nameInput); logoLabel.append(logoInput);
   const status = node('p'); status.setAttribute('role','status');
   const review = node('button','Review changes'); review.type = 'submit';
+  const cancel = node('button','Cancel','related'); cancel.type = 'button';
   const summary = node('div');
-  form.append(nameLabel,logoLabel,review,status,summary); panel.append(form); $('details').append(panel);
+  form.append(nameLabel,logoLabel,review,cancel,status,summary); panel.append(form); $('details').append(panel);
   let busy = false, ticket = 0;
+  cancel.onclick = () => { ++ticket; panel.remove(); };
   nameInput.oninput = logoInput.oninput = () => { ++ticket; summary.replaceChildren(); status.textContent = ''; };
   form.onsubmit = async event => {
     event.preventDefault(); if (busy || !form.reportValidity()) return;
@@ -887,7 +889,7 @@ function sponsorEditPanel(row) {
       const confirm = node('button','Confirm sponsor changes'); confirm.type = 'button'; summary.append(confirm);
       confirm.onclick = async () => {
         if (busy || !active() || fields.name !== nameInput.value.trim() || fields.logo_url !== logoInput.value.trim()) return;
-        busy = true; confirm.disabled = review.disabled = true; status.textContent = 'Saving sponsor changes...';
+        busy = true; confirm.disabled = review.disabled = cancel.disabled = true; status.textContent = 'Saving sponsor changes...';
         try {
           const receipt = (await requestSponsorEdit({action:'update',target_id:id,fields,confirmation:prepared.confirmation})).data;
           if (!active()) return;
@@ -899,7 +901,7 @@ function sponsorEditPanel(row) {
         } catch (error) {
           if (active()) status.textContent = error?.code?.includes('aborted') ?
             'Sponsor changed. Refresh the library and review again.' : 'Update could not be confirmed. Refresh to check its current details.';
-        } finally { busy = false; if (panel.isConnected) { review.disabled = false; confirm.disabled = false; } }
+        } finally { busy = false; if (panel.isConnected) { review.disabled = false; confirm.disabled = false; cancel.disabled = false; } }
       };
       status.textContent = 'Review ready. Nothing has changed yet.';
     } catch (error) {
