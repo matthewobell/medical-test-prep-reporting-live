@@ -1161,6 +1161,11 @@ function render() {
   if (!catalog || !user) return;
   let archiveTabs = $('archive-section-tabs');
   if (!archiveTabs) {
+    if (!$('archive-picker-style')) {
+      const style = document.createElement('style'); style.id = 'archive-picker-style';
+      style.textContent = '#archive-section-tabs{background:#fff;border:1px solid #d3dfef;border-radius:16px;padding:5px;margin:0 0 22px;gap:4px}#archive-section-tabs button{background:transparent;color:#172747;border:0;border-radius:11px;padding:11px 22px}#archive-section-tabs button[aria-pressed="true"]{background:#cfe2fb;color:#172747}';
+      document.head.append(style);
+    }
     archiveTabs = node('nav',undefined,'tabs'); archiveTabs.id = 'archive-section-tabs';
     archiveTabs.setAttribute('aria-label','Archive sections');
     for (const [type,label] of [['sponsors','Sponsors'],['campaigns','Campaigns'],['creatives','Ad creatives'],['drafts','Drafts']]) {
