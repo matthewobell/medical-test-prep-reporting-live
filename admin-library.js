@@ -1159,6 +1159,17 @@ function renderTable(rows) {
 }
 function render() {
   if (!catalog || !user) return;
+  let archiveTabs = $('archive-section-tabs');
+  if (!archiveTabs) {
+    archiveTabs = node('nav',undefined,'tabs'); archiveTabs.id = 'archive-section-tabs';
+    archiveTabs.setAttribute('aria-label','Archive sections');
+    for (const [type,label] of [['sponsors','Sponsors'],['campaigns','Campaigns'],['creatives','Ad creatives'],['drafts','Drafts']]) {
+      const tab = node('button',label); tab.type = 'button'; tab.onclick = () => switchArchive(type); archiveTabs.append(tab);
+    }
+    const stats = document.querySelector('.stats'); stats?.parentNode?.insertBefore(archiveTabs,stats);
+  }
+  archiveTabs.hidden = !archiveMode;
+  if (archiveMode) for (const tab of archiveTabs.children) tab.setAttribute('aria-pressed',String(tab.textContent === ({sponsors:'Sponsors',campaigns:'Campaigns',creatives:'Ad creatives',drafts:'Drafts'})[section]));
   const titles = {campaigns:'Campaigns',creatives:'Ad creatives',sponsors:'Sponsors',drafts:'Drafts'};
   $('browse-title').textContent = archiveMode ? 'Archive · ' + titles[section] : titles[section];
   $('browse-description').textContent = archiveMode ? 'Archived records are kept here separately from active work.' : section === 'drafts' ? 'Continue saved work without changing ad delivery.' : section === 'campaigns' ? 'Manage campaigns and the ads within them.' : section === 'creatives' ? 'Manage the ads within your campaigns.' : 'Inspect sponsor records and their campaigns.';
@@ -1915,7 +1926,7 @@ function switchSection(type) {
 function switchArchive(type = section) {
   section = type; archiveMode = true; selected = null; detailTab = 'Overview'; $('library-search').value = ''; $('record-status').value = 'archived'; render();
 }
-for (const type of Object.keys(fields)) $('tab-' + type).onclick = () => archiveMode ? switchArchive(type) : switchSection(type);
+for (const type of Object.keys(fields)) $('tab-' + type).onclick = () => switchSection(type);
 $('tab-archive').onclick = () => switchArchive();
 $('library-search').oninput = () => { selected = null; render(); };
 $('record-status').onchange = () => { selected = null; render(); };
