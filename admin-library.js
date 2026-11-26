@@ -1196,7 +1196,7 @@ function render() {
   const sponsor = $('sponsor-filter').value, campaign = $('campaign-filter').value;
   const campaignIds = new Set(catalog.campaigns.filter(row =>
     (sponsor === 'all' || row.sponsor_id === sponsor) && (campaign === 'all' || row.id === campaign)).map(row => row.id));
-  const rows = catalog[section].filter(row => !archiveMode || row.archived === true).filter(row => section === 'sponsors' ? sponsor === 'all' || row.id === sponsor :
+  const rows = catalog[section].filter(row => archiveMode ? row.archived === true : row.archived !== true).filter(row => section === 'sponsors' ? sponsor === 'all' || row.id === sponsor :
     section === 'campaigns' ? campaignIds.has(row.id) : campaignIds.has(row.campaign_id)).filter(matchesSearch).filter(matchesStatus);
   const currentRow = chooseRow(rows);
   for (const type of Object.keys(fields)) $('tab-' + type).setAttribute('aria-pressed',String(section === type && !archiveMode));
