@@ -220,7 +220,7 @@ function detail(row) {
   ++publishedPreviewRequest;
   ++rollbackRequest; rollbackPanel = null;
   $('details').replaceChildren(node('h2', row.name || row.id,'workspace-title'));
-  $('details').append(node('p',row.archived ? 'Archived Â· Cannot serve ads' : row.enabled ? 'Enabled' : 'Disabled','record-state'));
+  $('details').append(node('p',row.archived ? 'Archived · Cannot serve ads' : row.enabled ? 'Enabled' : 'Disabled','record-state'));
   const groups = section === 'campaigns' ? [
     ['Overview',['name','sponsor_id','approved','enabled']],
     ['Schedule',['start_at','end_at','share_schedule']],
@@ -820,7 +820,7 @@ async function sponsorStatus(row,panel,action,prepared = null,preparedTicket = n
       panel.append(node('p','Logo link: ' + sponsor.logo_url),node('p','Only Enabled changes from No to Yes. Campaign and creative settings stay unchanged. Nothing has been activated yet.'));
       if (!linked.length) panel.append(node('p','No linked campaigns. Enabling this sponsor alone will not serve any ads.'));
       for (const campaign of linked) {
-        panel.append(node('p',campaign.name + ' (ID: ' + campaign.id + ') â€” ' +
+        panel.append(node('p',campaign.name + ' (ID: ' + campaign.id + ') — ' +
           (campaign.may_deliver ? (campaign.scheduled_for_later ? 'May deliver during its future schedule.' : 'May deliver now or during its remaining schedule.') : 'Not eligible to deliver under its current flags, dates, or allocation.') +
           ' Approved: ' + (campaign.approved ? 'Yes' : 'No') + '. Enabled: ' + (campaign.enabled ? 'Yes' : 'No') + '.'));
       }
@@ -884,8 +884,8 @@ function sponsorEditPanel(row) {
           !/^[0-9a-f]{64}$/.test(prepared.confirmation || '') ||
           prepared.after?.name !== fields.name || prepared.after?.logo_url !== fields.logo_url ||
           prepared.after?.enabled !== row.enabled) throw Error('Invalid review');
-      summary.append(node('p','Name: ' + row.name + ' â†’ ' + fields.name),
-        node('p','Logo: ' + row.logo_url + ' â†’ ' + fields.logo_url),
+      summary.append(node('p','Name: ' + row.name + ' → ' + fields.name),
+        node('p','Logo: ' + row.logo_url + ' → ' + fields.logo_url),
         node('p','Enabled remains ' + (row.enabled ? 'Yes' : 'No') + '. Check that the new logo image loads before confirming.'));
       const confirm = node('button','Confirm sponsor changes'); confirm.type = 'button'; summary.append(confirm);
       confirm.onclick = async () => {
@@ -1177,13 +1177,13 @@ function render() {
   archiveTabs.hidden = !archiveMode;
   if (archiveMode) for (const tab of archiveTabs.children) tab.setAttribute('aria-pressed',String(tab.textContent === ({sponsors:'Sponsors',campaigns:'Campaigns',creatives:'Ad creatives',drafts:'Drafts'})[section]));
   const titles = {campaigns:'Campaigns',creatives:'Ad creatives',sponsors:'Sponsors',drafts:'Drafts'};
-  $('browse-title').textContent = archiveMode ? 'Archive Â· ' + titles[section] : titles[section];
+  $('browse-title').textContent = archiveMode ? 'Archive · ' + titles[section] : titles[section];
   $('browse-description').textContent = archiveMode ? 'Archived records are kept here separately from active work.' : section === 'drafts' ? 'Continue saved work without changing ad delivery.' : section === 'campaigns' ? 'Manage campaigns and the ads within them.' : section === 'creatives' ? 'Manage the ads within your campaigns.' : 'Inspect sponsor records and their campaigns.';
   $('library-search').placeholder = 'Search ' + titles[section].toLowerCase() + ' by name or ID';
   $('campaign-count').textContent = String(catalog.campaigns.length);
   $('creative-count').textContent = String(catalog.creatives.length);
   $('draft-count').textContent = String(drafts.length);
-  $('campaign-subtotal').textContent = catalog.campaigns.filter(row => row.enabled && !row.archived).length + ' enabled Â· ' + catalog.campaigns.filter(row => row.archived).length + ' archived';
+  $('campaign-subtotal').textContent = catalog.campaigns.filter(row => row.enabled && !row.archived).length + ' enabled · ' + catalog.campaigns.filter(row => row.archived).length + ' archived';
   $('creative-subtotal').textContent = catalog.creatives.filter(row => row.enabled && row.approved && !row.archived).length + ' approved and enabled';
   $('draft-subtotal').textContent = 'Not served to users';
   $('guide-sponsor-status').textContent = catalog.sponsors.filter(row => row.enabled && !row.archived).length + ' enabled';
@@ -1514,7 +1514,7 @@ async function removeSavedMedia(slot,removeButton,preview,status,player) {
   if (!window.confirm('Remove this saved file from the draft? This permanently deletes the private upload.')) return;
   const current = editor, run = generation, uid = user?.uid;
   const active = () => editor === current && generation === run && user?.uid === uid;
-  mediaLock(true); status.textContent = 'Removing saved fileâ€¦';
+  mediaLock(true); status.textContent = 'Removing saved file…';
   try {
     const response = await removeUpload({draft_id: current.id, slot, asset_id: assetId});
     if (!active()) return;
@@ -1523,7 +1523,7 @@ async function removeSavedMedia(slot,removeButton,preview,status,player) {
     editor = structuredClone(result.draft); editor.fields.media_assets ||= {}; dirty = false;
     clearMediaPreview(); player.replaceChildren(); preview.hidden = true; removeButton.hidden = true;
     status.textContent = 'Saved file removed. Save a new file only if you want to attach one.';
-    invalidateReview();
+    invalidateReview(); mediaLock(false);
   } catch (error) {
     if (active()) status.textContent = 'The saved file could not be removed. Refresh the draft and try again.';
   } finally { if (active()) mediaLock(false); }
