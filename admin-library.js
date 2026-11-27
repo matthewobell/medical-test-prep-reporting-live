@@ -1626,7 +1626,9 @@ async function uploadMedia(slot,input,status,progress) {
       clearLibrary(); notice('Staff access could not be confirmed. Sign in with an approved account.',true); return;
     }
     const reason = error?.code || (/^(Storage returned HTTP \d+|Upload interrupted|Invalid completion|Invalid upload response)$/.test(error?.message) ? error.message : 'request failed');
-    status.textContent = stage + ' failed (' + reason + '). Your previous saved attachment is unchanged.';
+    const detail = error?.code === 'functions/invalid-argument' && typeof error.message === 'string'
+      ? ' ' + error.message.slice(0, 300) : '';
+    status.textContent = stage + ' failed (' + reason + ').' + detail + ' Your previous saved attachment is unchanged.';
   } finally {
     if (active()) { input.value = ''; mediaLock(false); }
   }
