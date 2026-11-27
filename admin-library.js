@@ -50,6 +50,7 @@ const fetchMediaLibrary = httpsCallable(getFunctions(app, config.region), 'get_m
 const createMediaFolder = httpsCallable(getFunctions(app, config.region), 'create_media_folder_record');
 const moveMediaAsset = httpsCallable(getFunctions(app, config.region), 'move_media_asset_record');
 let uploadTask = null, previewUrl = null;
+let workflowBusy = false, publishProgress = null;
 let pendingMedia = {};
 let drafts = [], mediaLibrary = {folders:[],assets:[]}, editor = null, editorRead = null, dirty = false, draftBusy = false, draftRequest = 0;
 let section = 'campaigns', selected = null, archiveMode = false;
@@ -224,7 +225,7 @@ function detail(row) {
   ++publishedPreviewRequest;
   ++rollbackRequest; rollbackPanel = null;
   $('details').replaceChildren(node('h2', row.name || row.id,'workspace-title'));
-  $('details').append(node('p',row.archived ? 'Archived · Cannot serve ads' : row.enabled ? 'Enabled' : 'Disabled','record-state'));
+  $('details').append(node('p',row.archived ? 'Archived Â· Cannot serve ads' : row.enabled ? 'Enabled' : 'Disabled','record-state'));
   const groups = section === 'campaigns' ? [
     ['Overview',['name','sponsor_id','approved','enabled']],
     ['Schedule',['start_at','end_at','share_schedule']],
@@ -824,7 +825,7 @@ async function sponsorStatus(row,panel,action,prepared = null,preparedTicket = n
       panel.append(node('p','Logo link: ' + sponsor.logo_url),node('p','Only Enabled changes from No to Yes. Campaign and creative settings stay unchanged. Nothing has been activated yet.'));
       if (!linked.length) panel.append(node('p','No linked campaigns. Enabling this sponsor alone will not serve any ads.'));
       for (const campaign of linked) {
-        panel.append(node('p',campaign.name + ' (ID: ' + campaign.id + ') — ' +
+        panel.append(node('p',campaign.name + ' (ID: ' + campaign.id + ') â€” ' +
           (campaign.may_deliver ? (campaign.scheduled_for_later ? 'May deliver during its future schedule.' : 'May deliver now or during its remaining schedule.') : 'Not eligible to deliver under its current flags, dates, or allocation.') +
           ' Approved: ' + (campaign.approved ? 'Yes' : 'No') + '. Enabled: ' + (campaign.enabled ? 'Yes' : 'No') + '.'));
       }
@@ -888,8 +889,8 @@ function sponsorEditPanel(row) {
           !/^[0-9a-f]{64}$/.test(prepared.confirmation || '') ||
           prepared.after?.name !== fields.name || prepared.after?.logo_url !== fields.logo_url ||
           prepared.after?.enabled !== row.enabled) throw Error('Invalid review');
-      summary.append(node('p','Name: ' + row.name + ' → ' + fields.name),
-        node('p','Logo: ' + row.logo_url + ' → ' + fields.logo_url),
+      summary.append(node('p','Name: ' + row.name + ' â†’ ' + fields.name),
+        node('p','Logo: ' + row.logo_url + ' â†’ ' + fields.logo_url),
         node('p','Enabled remains ' + (row.enabled ? 'Yes' : 'No') + '. Check that the new logo image loads before confirming.'));
       const confirm = node('button','Confirm sponsor changes'); confirm.type = 'button'; summary.append(confirm);
       confirm.onclick = async () => {
@@ -974,14 +975,8 @@ async function createSponsor(confirming = false) {
         data.sponsor.name !== values.name || data.sponsor.logo_url !== values.logo_url ||
         !Array.isArray(data.warnings) || data.warnings.length > 10 || data.warnings.some(v => typeof v !== 'string' || v.length > 1000)) throw Error('Invalid sponsor summary');
     current.prepared = {fields:values,confirmation:data.confirmation,target_id:data.new_target_id};
-    const panel = $('sponsor-create-summary'); panel.replaceChildren(node('h3','Review new sponsor'),
-      node('p','Name: ' + values.name),node('p','Logo link: ' + values.logo_url),node('p','Enabled: No'),
-      node('p','This creates a sponsor in the ' + config.projectLabel + '. It creates no campaigns and grants no reporting access. Logo availability and appearance are not verified.'));
-    for (const warning of data.warnings) panel.append(node('p',warning));
-    const confirm = node('button','Confirm sponsor creation'); confirm.type = 'button';
-    confirm.onclick = () => { if (active() && current.prepared) createSponsor(true); };
-    panel.append(confirm); panel.hidden = false;
-    $('sponsor-create-status').textContent = 'Review ready. Nothing has been created.';
+    sponsorCreateLock(false);
+    await createSponsor(true);
   } catch (error) {
     if (!active()) return;
     if (error?.code?.includes('permission-denied') || error?.code?.includes('unauthenticated')) {
@@ -1183,13 +1178,13 @@ function render() {
   if (section === 'media') { renderMediaLibrary(); return; }
   if (archiveMode) for (const tab of archiveTabs.children) tab.setAttribute('aria-pressed',String(tab.textContent === ({sponsors:'Sponsors',campaigns:'Campaigns',creatives:'Ad creatives',drafts:'Drafts'})[section]));
   const titles = {campaigns:'Campaigns',creatives:'Ad creatives',sponsors:'Sponsors',drafts:'Drafts'};
-  $('browse-title').textContent = archiveMode ? 'Archive · ' + titles[section] : titles[section];
+  $('browse-title').textContent = archiveMode ? 'Archive Â· ' + titles[section] : titles[section];
   $('browse-description').textContent = archiveMode ? 'Archived records are kept here separately from active work.' : section === 'drafts' ? 'Continue saved work without changing ad delivery.' : section === 'campaigns' ? 'Manage campaigns and the ads within them.' : section === 'creatives' ? 'Manage the ads within your campaigns.' : 'Inspect sponsor records and their campaigns.';
   $('library-search').placeholder = 'Search ' + titles[section].toLowerCase() + ' by name or ID';
   $('campaign-count').textContent = String(catalog.campaigns.length);
   $('creative-count').textContent = String(catalog.creatives.length);
   $('draft-count').textContent = String(drafts.length);
-  $('campaign-subtotal').textContent = catalog.campaigns.filter(row => row.enabled && !row.archived).length + ' enabled · ' + catalog.campaigns.filter(row => row.archived).length + ' archived';
+  $('campaign-subtotal').textContent = catalog.campaigns.filter(row => row.enabled && !row.archived).length + ' enabled Â· ' + catalog.campaigns.filter(row => row.archived).length + ' archived';
   $('creative-subtotal').textContent = catalog.creatives.filter(row => row.enabled && row.approved && !row.archived).length + ' approved and enabled';
   $('draft-subtotal').textContent = 'Not served to users';
   $('guide-sponsor-status').textContent = catalog.sponsors.filter(row => row.enabled && !row.archived).length + ' enabled';
@@ -1236,14 +1231,14 @@ function renderMediaLibrary() {
   for (const asset of assets) {
     const tr = node('tr');
     const folder = node('select'); folder.append(new Option('Unfiled',''));
-    for (const item of mediaLibrary.folders) folder.append(new Option(item.name + ' · ' + (catalog.sponsors.find(row => row.id === item.sponsor_id)?.name || item.sponsor_id), item.id));
+    for (const item of mediaLibrary.folders) folder.append(new Option(item.name + ' Â· ' + (catalog.sponsors.find(row => row.id === item.sponsor_id)?.name || item.sponsor_id), item.id));
     folder.value = asset.folder_id || '';
     const move = node('button','Move','secondary'); move.type = 'button';
     move.onclick = async () => { move.disabled = true; try { await moveMediaAsset({asset_id:asset.id,folder_id:folder.value || null}); asset.folder_id = folder.value || null; renderMediaLibrary(); } catch { move.disabled = false; notice('The media file could not be moved. Refresh the library and try again.',true); } };
     const folderCell = node('td'); folderCell.append(folder,move);
-    tr.append(node('td',asset.name || asset.id),node('td',asset.content_type || asset.slot),folderCell,node('td',asset.draft_id || '—')); $('records').append(tr);
+    tr.append(node('td',asset.name || asset.id),node('td',asset.content_type || asset.slot),folderCell,node('td',asset.draft_id || 'â€”')); $('records').append(tr);
   }
-  $('summary').textContent = assets.length + ' files · ' + mediaLibrary.folders.length + ' folders';
+  $('summary').textContent = assets.length + ' files Â· ' + mediaLibrary.folders.length + ' folders';
   $('details').replaceChildren();
   const panel = node('section',undefined,'media-library-panel'); panel.append(node('h2','Sponsor folders'),node('p','Folders can contain nested subfolders. Existing files remain private until attached to a creative and published.','muted'));
   const form = node('form',undefined,'folder-form');
@@ -1252,8 +1247,8 @@ function renderMediaLibrary() {
   const nameInput = node('input'); nameInput.placeholder = 'Folder name'; nameInput.maxLength = 120; nameInput.required = true;
   sponsor.onchange = () => { parent.replaceChildren(new Option('Top-level folder','')); for (const folder of mediaLibrary.folders.filter(folder => folder.sponsor_id === sponsor.value)) parent.append(new Option(folder.name,folder.id)); };
   const create = node('button','Create folder'); create.type = 'submit'; form.append(sponsor,nameInput,parent,create);
-  const status = node('p',undefined,'muted'); form.onsubmit = async event => { event.preventDefault(); if (!sponsor.value) { status.textContent = 'Choose a sponsor first.'; return; } create.disabled = true; status.textContent = 'Creating folder…'; try { const result = await createMediaFolder({name:nameInput.value.trim(),sponsor_id:sponsor.value,parent_id:parent.value || null}); mediaLibrary.folders.push(result.data.folder); nameInput.value = ''; sponsor.dispatchEvent(new Event('change')); status.textContent = 'Folder created.'; renderMediaLibrary(); } catch { status.textContent = 'Folder could not be created. Check your access and try again.'; } finally { create.disabled = false; } };
-  panel.append(form,status); const list = node('ul'); for (const folder of mediaLibrary.folders) { const li = node('li',folder.name + (folder.parent_id ? ' (subfolder)' : '') + ' · ' + (catalog.sponsors.find(row => row.id === folder.sponsor_id)?.name || folder.sponsor_id)); list.append(li); } panel.append(list); $('details').append(panel);
+  const status = node('p',undefined,'muted'); form.onsubmit = async event => { event.preventDefault(); if (!sponsor.value) { status.textContent = 'Choose a sponsor first.'; return; } create.disabled = true; status.textContent = 'Creating folderâ€¦'; try { const result = await createMediaFolder({name:nameInput.value.trim(),sponsor_id:sponsor.value,parent_id:parent.value || null}); mediaLibrary.folders.push(result.data.folder); nameInput.value = ''; sponsor.dispatchEvent(new Event('change')); status.textContent = 'Folder created.'; renderMediaLibrary(); } catch { status.textContent = 'Folder could not be created. Check your access and try again.'; } finally { create.disabled = false; } };
+  panel.append(form,status); const list = node('ul'); for (const folder of mediaLibrary.folders) { const li = node('li',folder.name + (folder.parent_id ? ' (subfolder)' : '') + ' Â· ' + (catalog.sponsors.find(row => row.id === folder.sponsor_id)?.name || folder.sponsor_id)); list.append(li); } panel.append(list); $('details').append(panel);
   $('campaign-count').textContent = String(catalog.campaigns.length); $('creative-count').textContent = String(catalog.creatives.length); $('draft-count').textContent = String(drafts.length);
 }
 async function load() {
@@ -1445,6 +1440,7 @@ function editList(parent, key, values) {
   return () => rows.map(row => row.read());
 }
 function openEditor(draft) {
+  publishProgress = null;
   if (!catalog || !user) return;
   pendingMedia = {};
   clearMediaPreview(); invalidateReview();
@@ -1582,7 +1578,7 @@ async function removeSavedMedia(slot,removeButton,preview,status,player) {
   if (!window.confirm('Remove this saved file from the draft? This permanently deletes the private upload.')) return;
   const current = editor, run = generation, uid = user?.uid;
   const active = () => editor === current && generation === run && user?.uid === uid;
-  mediaLock(true); status.textContent = 'Removing saved file…';
+  mediaLock(true); status.textContent = 'Removing saved fileâ€¦';
   try {
     const response = await removeUpload({draft_id: current.id, slot, asset_id: assetId});
     if (!active()) return;
@@ -1890,30 +1886,105 @@ async function campaignPublish(confirmation = null, preparedTicket = null) {
     if (generation === run && user?.uid === uid && editor === current) { mediaLock(false); $('review-draft').disabled = false; }
   }
 }
-$('review-draft').onclick = async () => {
-  if (!editor || !user || draftBusy) return;
-  invalidateReview();
-  if (!editor.id || dirty) { $('draft-status').textContent = 'Save your draft changes before reviewing the saved revision.'; return; }
-  const current = editor, run = generation, uid = user.uid, ticket = reviewRequest;
-  const active = () => editor === current && generation === run && user?.uid === uid && ticket === reviewRequest;
-  mediaLock(true); $('review-draft').disabled = true; $('draft-status').textContent = 'Reviewing the saved draft and stored configuration\u2026';
-  try {
-    const response = await fetchReview({draft_id:current.id,expected_revision:current.revision});
-    if (!active()) return;
-    showReview(validateReview(response.data,current)); $('draft-status').textContent = 'Saved draft reviewed. No ad delivery changed.';
-  } catch (error) {
-    if (!active()) return;
-    if (error?.code?.includes('permission-denied') || error?.code?.includes('unauthenticated')) {
-      clearLibrary(); notice('Staff review access could not be confirmed. Sign in with an approved account.',true); return;
-    }
-    $('draft-status').textContent = error?.code?.includes('aborted') ?
-      'This draft changed in another page. Reload its saved version before reviewing.' :
-      'The review could not be completed. Check your connection or ask your administrator to check the stored catalog. No partial review or approval was issued.';
-  } finally {
-    if (generation === run && user?.uid === uid && editor === current) mediaLock(false);
-    if (generation === run) $('review-draft').disabled = false;
+// One user action retains each server-side save, validation, approval and delivery check.
+async function publishEditor(startDelivery = false) {
+  if (workflowBusy || draftBusy || !editor || !user) return;
+  if (!$('draft-form').reportValidity()) return;
+  if (publishProgress?.uncertain) {
+    $('draft-status').textContent = 'The last change could not be confirmed. Refresh the library and check the record before publishing again.';
+    return;
   }
-};
+  workflowBusy = true;
+  document.body.inert = true;
+  const uid = user.uid, run = generation;
+  let stage = 'Saving draft';
+  const active = () => user?.uid === uid && generation === run && editor;
+  const receipt = data => {
+    if (!active()) throw Error('Your session changed. Refresh the library to check the result.');
+    if (data?.environment !== config.environment) throw Error('The server returned an unexpected environment.');
+    return data;
+  };
+  const token = data => {
+    if (!/^[0-9a-f]{64}$/.test(data.confirmation || '')) throw Error('The server could not confirm these settings.');
+    return data.confirmation;
+  };
+  const write = async (call, payload) => {
+    publishProgress.uncertain = true;
+    const data = receipt((await call(payload)).data);
+    return data;
+  };
+  try {
+    if (!publishProgress || dirty) {
+      if (publishProgress?.published) throw Error('Settings were already published. Reopen the record to make further edits.');
+      const saved = await saveEditorDraft();
+      if (!saved || !active()) return;
+      publishProgress = {published:false, approved:false, target:null, uncertain:false};
+    }
+    const current = editor;
+    const payload = {draft_id:current.id, expected_revision:current.revision};
+    const progress = publishProgress;
+    if (!progress.published) {
+      stage = 'Checking settings'; $('draft-status').textContent = stage + 'â€¦';
+      const review = validateReview(receipt((await fetchReview(payload)).data), current);
+      if (!review.checks_passed) {
+        $('draft-status').textContent = review.issues.filter(i => i.severity === 'error').map(i => i.message).join(' ');
+        return;
+      }
+      const values = current.fields;
+      const parent = current.kind === 'campaign'
+        ? catalog.sponsors.find(row => row.id === values.sponsor_id)
+        : catalog.campaigns.find(row => row.id === values.campaign_id);
+      const summary = [values.name, parent?.name || '',
+        'Dates: ' + (values.start_at || 'No start date') + ' â€” ' + (values.end_at || 'No end date'),
+        'Targeting: ' + [values.exam || parent?.exam, values.module || parent?.module, ...(values.platforms || [])].filter(Boolean).join(', '),
+        startDelivery ? 'Publish and enable this record? Delivery still depends on its sponsor, campaign, schedule and eligible ads.' : 'Publish and approve this record, keeping it paused?',
+        ...review.issues.filter(i => i.severity === 'warning').map(i => i.message)].filter(Boolean).join('\n\n');
+      if (!window.confirm(summary)) { $('draft-status').textContent = 'Draft saved. Publishing cancelled.'; return; }
+      const create = current.kind === 'campaign' ? requestCampaignCreate : requestCreativeCreate;
+      const prepare = current.target_id ? (current.kind === 'campaign' ? prepareCampaignPublish : prepareCreativePublish) : create;
+      const publish = current.target_id ? (current.kind === 'campaign' ? publishCampaignDraft : publishCreativeDraft) : create;
+      stage = 'Publishing settings'; $('draft-status').textContent = stage + 'â€¦';
+      const prepared = receipt((await prepare(payload)).data);
+      const checked = validateReview(prepared.review, current);
+      if (!checked.checks_passed) throw Error('Settings changed. Check the draft and try again.');
+      const target = current.target_id || prepared.new_target_id;
+      if (typeof target !== 'string' || !target.startsWith(current.kind + '-')) throw Error('Invalid record identifier.');
+      const result = await write(publish, {...payload, confirmation:token(prepared)});
+      if (result.target_id !== target || result.draft_id !== current.id || result.revision !== current.revision ||
+          (current.target_id ? result.settings_published !== true : result.created !== true)) throw Error('Publication could not be confirmed.');
+      progress.target = target; progress.published = true; progress.uncertain = false;
+    }
+    const approval = current.kind === 'campaign' ? requestCampaignApproval : requestCreativeApproval;
+    if (!progress.approved) {
+      stage = 'Approving settings'; $('draft-status').textContent = stage + 'â€¦';
+      const prepared = receipt((await approval({action:'prepare', target_id:progress.target})).data);
+      if (prepared.target_id !== progress.target) throw Error('Unexpected approval record.');
+      const result = await write(approval, {action:'approve', target_id:progress.target, confirmation:token(prepared)});
+      if (result.target_id !== progress.target || result.approved !== true || result.enabled !== false) throw Error('Approval could not be confirmed.');
+      progress.approved = true; progress.uncertain = false;
+    }
+    if (startDelivery) {
+      stage = 'Enabling delivery'; $('draft-status').textContent = stage + 'â€¦';
+      const activate = current.kind === 'campaign' ? requestCampaignResume : requestCreativeActivation;
+      const prepared = receipt((await activate({action:'prepare', target_id:progress.target})).data);
+      if (prepared.target_id !== progress.target) throw Error('Unexpected delivery record.');
+      const result = await write(activate, {action:current.kind === 'campaign' ? 'resume' : 'activate', target_id:progress.target, confirmation:token(prepared)});
+      if (result.target_id !== progress.target || result.enabled !== true || result.approved !== true) throw Error('Delivery status could not be confirmed.');
+      progress.uncertain = false;
+    }
+    await load();
+    notice(startDelivery ? 'Published and enabled. Delivery follows the saved schedule and eligibility rules.' : 'Published and approved. This record is paused.');
+  } catch (error) {
+    if (active()) $('draft-status').textContent = stage + ' could not finish. ' +
+      (publishProgress?.published ? 'Settings are published. ' : '') +
+      (publishProgress?.uncertain ? 'Refresh the library and check the record before retrying; the last request may have completed.' :
+        String(error?.message || 'Try again.').replace(/^Firebase: /, '').slice(0, 600));
+  } finally {
+    document.body.inert = false; workflowBusy = false;
+  }
+}
+$('review-draft').onclick = () => publishEditor(false);
+$('publish-start').onclick = () => publishEditor(true);
 
 function leaveEditor() {
   if (draftBusy || (dirty && !window.confirm('Discard unsaved draft changes and return to the library?'))) return false;
@@ -1944,10 +2015,11 @@ $('tab-drafts').onclick = () => switchSection('drafts');
 $('reload-draft').onclick = () => {
   if (editor?.id && !draftBusy && (!dirty || window.confirm('Discard your unsaved changes and load the latest saved version?'))) readDraft(editor.id,$('reload-draft'));
 };
-window.addEventListener('beforeunload',event => { if (dirty || draftBusy || campaignPauseBusy || creativePauseBusy || rollbackBusyTicket !== null) { event.preventDefault(); event.returnValue = ''; } });
-$('draft-form').onsubmit = async event => {
-  event.preventDefault(); if (!editor || !user || draftBusy) return;
+window.addEventListener('beforeunload',event => { if (workflowBusy || dirty || draftBusy || campaignPauseBusy || creativePauseBusy || rollbackBusyTicket !== null) { event.preventDefault(); event.returnValue = ''; } });
+async function saveEditorDraft() {
+  if (!editor || !user || draftBusy) return;
   const run = generation, uid = user.uid, current = editor;
+  let expectedEditor = current;
   let values;
   try { values = editorRead(); }
   catch { $('draft-status').textContent = 'Check the dates and field values before saving.'; return; }
@@ -1964,9 +2036,9 @@ $('draft-form').onsubmit = async event => {
     drafts = [saved,...drafts.filter(row => row.id !== saved.id)].sort((a,b) => b.updated_at.localeCompare(a.updated_at));
     const queuedMedia = pendingMedia;
     openEditor(saved);
-    const savedEditor = editor;
+    const savedEditor = editor; expectedEditor = editor;
+    pendingMedia = {...queuedMedia};
     for (const [slot, file] of Object.entries(queuedMedia)) {
-      pendingMedia[slot] = file;
       const uploaded = await uploadMedia(slot, {files:[file], value:''}, $('draft-status'), {hidden:true, value:0});
       if (run !== generation || user?.uid !== uid || editor !== savedEditor) return;
       if (!uploaded) {
@@ -1989,11 +2061,13 @@ $('draft-form').onsubmit = async event => {
       if (attached.data?.environment !== config.environment) throw Error('Invalid draft response');
       const finalDraft = validDraft(attached.data.draft,true);
       drafts = [finalDraft,...drafts.filter(row => row.id !== finalDraft.id)];
-      openEditor(finalDraft);
+      if (finalDraft.id !== savedEditor.id || finalDraft.kind !== savedEditor.kind || finalDraft.target_id !== savedEditor.target_id) throw Error('Unexpected attachment response');
+      openEditor(finalDraft); expectedEditor = editor;
     }
     $('draft-status').textContent = 'Draft saved. Served ads have not changed.';
+    return editor;
   } catch (error) {
-    if (run !== generation || user?.uid !== uid || editor !== current) return;
+    if (run !== generation || user?.uid !== uid || editor !== expectedEditor) return;
     if (error?.code?.includes('permission-denied') || error?.code?.includes('unauthenticated')) {
       clearLibrary(); notice('Staff access could not be confirmed. Sign in with an approved account.',true); return;
     }
@@ -2007,6 +2081,13 @@ $('draft-form').onsubmit = async event => {
       draftBusy = false; $('draft-fields').disabled = false; $('save-draft').disabled = false; $('close-draft').disabled = false;
     }
   }
+}
+$('draft-form').onsubmit = async event => {
+  event.preventDefault();
+  if (workflowBusy || draftBusy) return;
+  workflowBusy = true; document.body.inert = true;
+  try { await saveEditorDraft(); }
+  finally { workflowBusy = false; document.body.inert = false; }
 };
 
 function resetLink() {
