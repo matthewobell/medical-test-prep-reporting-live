@@ -46,8 +46,11 @@ let reviewRequest = 0;
 const prepareUpload = httpsCallable(getFunctions(app, config.region), 'prepare_ad_upload');
 const completeUpload = httpsCallable(getFunctions(app, config.region), 'complete_ad_upload');
 const removeUpload = httpsCallable(getFunctions(app, config.region), 'remove_ad_asset');
+const fetchMediaLibrary = httpsCallable(getFunctions(app, config.region), 'get_media_library');
+const createMediaFolder = httpsCallable(getFunctions(app, config.region), 'create_media_folder_record');
+const moveMediaAsset = httpsCallable(getFunctions(app, config.region), 'move_media_asset_record');
 let uploadTask = null, previewUrl = null;
-let drafts = [], editor = null, editorRead = null, dirty = false, draftBusy = false, draftRequest = 0;
+let drafts = [], mediaLibrary = {folders:[],assets:[]}, editor = null, editorRead = null, dirty = false, draftBusy = false, draftRequest = 0;
 let section = 'campaigns', selected = null, archiveMode = false;
 let remembered = {}, detailTab = 'Overview';
 let emailLink = isSignInWithEmailLink(auth, window.location.href) ? window.location.href : '';
@@ -1175,6 +1178,7 @@ function render() {
     const stats = document.querySelector('.stats'); stats?.parentNode?.insertBefore(archiveTabs,stats);
   }
   archiveTabs.hidden = !archiveMode;
+  if (section === 'media') { renderMediaLibrary(); return; }
   if (archiveMode) for (const tab of archiveTabs.children) tab.setAttribute('aria-pressed',String(tab.textContent === ({sponsors:'Sponsors',campaigns:'Campaigns',creatives:'Ad creatives',drafts:'Drafts'})[section]));
   const titles = {campaigns:'Campaigns',creatives:'Ad creatives',sponsors:'Sponsors',drafts:'Drafts'};
   $('browse-title').textContent = archiveMode ? 'Archive · ' + titles[section] : titles[section];
@@ -1206,6 +1210,44 @@ function render() {
   renderTable(rows);
   if (currentRow) detail(currentRow); else $('details').replaceChildren(node('p','No records match these filters.','empty'));
 }
+function renderMediaLibrary() {
+  archiveMode = false;
+  $('browse-title').textContent = 'Media library';
+  $('browse-description').textContent = 'Private creative files organized by sponsor and folder.';
+  $('library-search').placeholder = 'Search media by filename or ID';
+  $('library-search').value = $('library-search').value || '';
+  $('record-status').disabled = true; $('sponsor-filter').disabled = false; $('campaign-filter').disabled = true;
+  $('library-filters').hidden = false;
+  $('tab-media').setAttribute('aria-pressed','true');
+  for (const type of ['campaigns','creatives','sponsors','drafts','archive']) if ($('tab-' + type)) $('tab-' + type).setAttribute('aria-pressed','false');
+  $('record-head').innerHTML = '<tr><th>File</th><th>Type</th><th>Folder</th><th>Draft</th></tr>';
+  const query = $('library-search').value.trim().toLocaleLowerCase();
+  const folderName = id => mediaLibrary.folders.find(folder => folder.id === id)?.name || 'Unfiled';
+  const assets = mediaLibrary.assets.filter(asset => !query || [asset.name,asset.id,asset.content_type].some(value => String(value || '').toLocaleLowerCase().includes(query)));
+  $('records').replaceChildren();
+  for (const asset of assets) {
+    const tr = node('tr');
+    const folder = node('select'); folder.append(new Option('Unfiled',''));
+    for (const item of mediaLibrary.folders) folder.append(new Option(item.name + ' · ' + (catalog.sponsors.find(row => row.id === item.sponsor_id)?.name || item.sponsor_id), item.id));
+    folder.value = asset.folder_id || '';
+    const move = node('button','Move','secondary'); move.type = 'button';
+    move.onclick = async () => { move.disabled = true; try { await moveMediaAsset({asset_id:asset.id,folder_id:folder.value || null}); asset.folder_id = folder.value || null; renderMediaLibrary(); } catch { move.disabled = false; notice('The media file could not be moved. Refresh the library and try again.',true); } };
+    const folderCell = node('td'); folderCell.append(folder,move);
+    tr.append(node('td',asset.name || asset.id),node('td',asset.content_type || asset.slot),folderCell,node('td',asset.draft_id || '—')); $('records').append(tr);
+  }
+  $('summary').textContent = assets.length + ' files · ' + mediaLibrary.folders.length + ' folders';
+  $('details').replaceChildren();
+  const panel = node('section',undefined,'media-library-panel'); panel.append(node('h2','Sponsor folders'),node('p','Folders can contain nested subfolders. Existing files remain private until attached to a creative and published.','muted'));
+  const form = node('form',undefined,'folder-form');
+  const sponsor = node('select'); sponsor.append(new Option('Choose sponsor','')); for (const row of catalog.sponsors.filter(row => !row.archived)) sponsor.append(new Option(row.name || row.id,row.id));
+  const parent = node('select'); parent.append(new Option('Top-level folder',''));
+  const nameInput = node('input'); nameInput.placeholder = 'Folder name'; nameInput.maxLength = 120; nameInput.required = true;
+  sponsor.onchange = () => { parent.replaceChildren(new Option('Top-level folder','')); for (const folder of mediaLibrary.folders.filter(folder => folder.sponsor_id === sponsor.value)) parent.append(new Option(folder.name,folder.id)); };
+  const create = node('button','Create folder'); create.type = 'submit'; form.append(sponsor,nameInput,parent,create);
+  const status = node('p',undefined,'muted'); form.onsubmit = async event => { event.preventDefault(); if (!sponsor.value) { status.textContent = 'Choose a sponsor first.'; return; } create.disabled = true; status.textContent = 'Creating folder…'; try { const result = await createMediaFolder({name:nameInput.value.trim(),sponsor_id:sponsor.value,parent_id:parent.value || null}); mediaLibrary.folders.push(result.data.folder); nameInput.value = ''; sponsor.dispatchEvent(new Event('change')); status.textContent = 'Folder created.'; renderMediaLibrary(); } catch { status.textContent = 'Folder could not be created. Check your access and try again.'; } finally { create.disabled = false; } };
+  panel.append(form,status); const list = node('ul'); for (const folder of mediaLibrary.folders) { const li = node('li',folder.name + (folder.parent_id ? ' (subfolder)' : '') + ' · ' + (catalog.sponsors.find(row => row.id === folder.sponsor_id)?.name || folder.sponsor_id)); list.append(li); } panel.append(list); $('details').append(panel);
+  $('campaign-count').textContent = String(catalog.campaigns.length); $('creative-count').textContent = String(catalog.creatives.length); $('draft-count').textContent = String(drafts.length);
+}
 async function load() {
   if (!user) return;
   const run = ++generation, uid = user.uid;
@@ -1213,9 +1255,11 @@ async function load() {
   clearTimeout(timer); $('notice').hidden = true;
   try {
     appCheck ||= initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider(config.siteKey),isTokenAutoRefreshEnabled:true});
-    const [response, draftResponse] = await Promise.all([fetchLibrary({}), fetchDrafts({draft_id:null})]);
+    const [response, draftResponse, mediaResponse] = await Promise.all([fetchLibrary({}), fetchDrafts({draft_id:null}), fetchMediaLibrary({})]);
     if (run !== generation || user?.uid !== uid) return;
     catalog = validateLibrary(response.data); drafts = validateDraftList(draftResponse.data);
+    if (mediaResponse.data?.environment !== config.environment || !Array.isArray(mediaResponse.data.folders) || !Array.isArray(mediaResponse.data.assets) || mediaResponse.data.folders.length > 500 || mediaResponse.data.assets.length > 500) throw Error('Invalid media library');
+    mediaLibrary = mediaResponse.data;
     for (const row of catalog.sponsors) $('sponsor-filter').append(new Option(row.name || row.id,row.id));
     restoreSelection(); updateCampaigns(); render();
     $('library-filters').hidden = false; $('workspace-navigation').hidden = false;
@@ -1955,6 +1999,7 @@ function switchArchive(type = section) {
   section = type; archiveMode = true; selected = null; detailTab = 'Overview'; $('library-search').value = ''; $('record-status').value = 'archived'; render();
 }
 for (const type of Object.keys(fields)) $('tab-' + type).onclick = () => switchSection(type);
+$('tab-media').onclick = () => switchSection('media');
 $('tab-archive').onclick = () => switchArchive();
 $('library-search').oninput = () => { selected = null; render(); };
 $('record-status').onchange = () => { selected = null; render(); };
