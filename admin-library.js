@@ -50,6 +50,7 @@ const fetchMediaLibrary = httpsCallable(getFunctions(app, config.region), 'get_m
 const createMediaFolder = httpsCallable(getFunctions(app, config.region), 'create_media_folder_record');
 const moveMediaAsset = httpsCallable(getFunctions(app, config.region), 'move_media_asset_record');
 let uploadTask = null, previewUrl = null;
+let pendingMedia = {};
 let drafts = [], mediaLibrary = {folders:[],assets:[]}, editor = null, editorRead = null, dirty = false, draftBusy = false, draftRequest = 0;
 let section = 'campaigns', selected = null, archiveMode = false;
 let remembered = {}, detailTab = 'Overview';
@@ -1445,6 +1446,7 @@ function editList(parent, key, values) {
 }
 function openEditor(draft) {
   if (!catalog || !user) return;
+  pendingMedia = {};
   clearMediaPreview(); invalidateReview();
   if (draft.id) { section = 'drafts'; selected = draft.id; remembered.drafts = draft.id; rememberSelection(); }
   ++draftRequest; editor = structuredClone(draft); dirty = false; draftBusy = false;
@@ -1526,7 +1528,7 @@ function syncAdPreview() {
 function uploadControls() {
   const box = disclosure('Private draft media','Image, video and video cover','3 uploads');
   box.append(node('p',editor.id ? 'Upload a file, then save the draft to attach it. Existing uploaded files are kept; replacing an attachment does not delete files.' :
-    'Save this creative draft first to enable uploads.','field-help'));
+    'Choose your files now. Save draft will upload and attach them.','field-help'));
   const tabs = node('nav',undefined,'media-tabs'); tabs.setAttribute('aria-label','Private media slots');
   const zone = node('div',undefined,'draft-list'), slots = [], buttons = []; box.append(tabs);
   for (const [slot,title] of [['image','Creative image'],['video','Creative video'],['poster','Video cover image']]) {
@@ -1537,7 +1539,7 @@ function uploadControls() {
     buttons.push(tab); tabs.append(tab);
     const label = node('label',title); label.htmlFor = id;
     const file = node('input'); file.id = id; file.type = 'file'; file.accept = slot === 'video' ? 'video/mp4' : 'image/jpeg,image/png,image/webp';
-    file.disabled = !editor.id;
+    file.disabled = false;
     const help = node('p',slot === 'video' ? 'MP4 \u00b7 up to 50 MB' : 'JPEG, PNG, WebP \u00b7 up to 10 MB','field-help');
     const status = node('p',editor.fields.media_assets[slot] ? 'A private file is attached to this draft.' : 'No private file attached.','muted'); status.setAttribute('role','status');
     const progress = node('progress'); progress.max = 100; progress.value = 0; progress.hidden = true; progress.setAttribute('aria-label',title + ' upload progress');
@@ -1552,7 +1554,21 @@ function uploadControls() {
       button.onclick = () => { phone.className = 'phone-frame ad-preview-frame' + (device === 'Android' ? ' android' : ''); deviceButtons.forEach(other => other.setAttribute('aria-pressed',String(other === button))); };
       deviceButtons.push(button); devices.append(button);
     }
-    file.onchange = () => uploadMedia(slot,file,status,progress);
+    file.onchange = () => {
+      if (editor.id) return uploadMedia(slot,file,status,progress);
+      const selectedFile = file.files?.[0];
+      if (!selectedFile) return;
+      const maximum = (slot === 'video' ? 50 : 10) * 1024 * 1024;
+      const types = slot === 'video' ? ['video/mp4'] : ['image/jpeg','image/png','image/webp'];
+      if (!types.includes(selectedFile.type) || !selectedFile.size || selectedFile.size > maximum || selectedFile.name.length > 200) {
+        status.textContent = 'Choose a supported file within the displayed size limit.';
+        file.value = '';
+        return;
+      }
+      pendingMedia[slot] = selectedFile;
+      dirty = true;
+      status.textContent = selectedFile.name + ' selected. Save draft to upload and attach it.';
+    };
     preview.onclick = () => previewMedia(slot,preview,status,player);
     removeSaved.onclick = () => removeSavedMedia(slot,removeSaved,preview,status,player);
     controls.append(label,file,help,status,progress,preview,removeSaved,node('p','Preview frame','field-help'),devices,node('p','Draft text with saved media. The button is inactive and the 5 is a static sample. Native app layout may differ.','field-help'));
@@ -1620,6 +1636,7 @@ async function uploadMedia(slot,input,status,progress) {
     current.fields.media_assets[slot] = result.asset.id; dirty = true; invalidateReview();
     status.textContent = 'Upload checked. Click Save draft to attach this file, then reopen its preview.';
     progress.value = 100;
+    return true;
   } catch (error) {
     if (!active()) return;
     if (error?.code?.includes('permission-denied') || error?.code?.includes('unauthenticated')) {
@@ -1902,6 +1919,7 @@ function leaveEditor() {
   if (draftBusy || (dirty && !window.confirm('Discard unsaved draft changes and return to the library?'))) return false;
   clearMediaPreview(); invalidateReview();
   editor = null; editorRead = null; dirty = false; ++draftRequest;
+  pendingMedia = {};
   $('editor-fields').replaceChildren(); $('draft-editor').hidden = true; $('browse-panel').hidden = false; render(); return true;
 }
 $('draft-form').oninput = () => { dirty = true; invalidateReview(); syncAdPreview(); };
@@ -1944,7 +1962,36 @@ $('draft-form').onsubmit = async event => {
     const saved = validDraft(response.data.draft,true);
     if (saved.kind !== current.kind || saved.target_id !== current.target_id || (current.id && saved.id !== current.id)) throw Error('Unexpected draft');
     drafts = [saved,...drafts.filter(row => row.id !== saved.id)].sort((a,b) => b.updated_at.localeCompare(a.updated_at));
-    openEditor(saved); $('draft-status').textContent = 'Draft saved. Served ads have not changed.';
+    const queuedMedia = pendingMedia;
+    openEditor(saved);
+    const savedEditor = editor;
+    for (const [slot, file] of Object.entries(queuedMedia)) {
+      pendingMedia[slot] = file;
+      const uploaded = await uploadMedia(slot, {files:[file], value:''}, $('draft-status'), {hidden:true, value:0});
+      if (run !== generation || user?.uid !== uid || editor !== savedEditor) return;
+      if (!uploaded) {
+        $('draft-status').textContent += ' The draft was saved. Choose the file again to retry.';
+        return;
+      }
+      delete pendingMedia[slot];
+    }
+    if (Object.keys(queuedMedia).length) {
+      mediaLock(true);
+      let attached;
+      try {
+        attached = await persistDraft({draft_id:editor.id,expected_revision:editor.revision,
+          kind:editor.kind,target_id:editor.target_id,fields:editorRead()});
+      } catch {
+        if (editor === savedEditor) $('draft-status').textContent = 'Draft and uploads were created, but attachments could not be saved. Click Save draft to retry.';
+        return;
+      }
+      if (run !== generation || user?.uid !== uid || editor !== savedEditor) return;
+      if (attached.data?.environment !== config.environment) throw Error('Invalid draft response');
+      const finalDraft = validDraft(attached.data.draft,true);
+      drafts = [finalDraft,...drafts.filter(row => row.id !== finalDraft.id)];
+      openEditor(finalDraft);
+    }
+    $('draft-status').textContent = 'Draft saved. Served ads have not changed.';
   } catch (error) {
     if (run !== generation || user?.uid !== uid || editor !== current) return;
     if (error?.code?.includes('permission-denied') || error?.code?.includes('unauthenticated')) {
