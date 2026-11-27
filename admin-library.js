@@ -223,7 +223,7 @@ function detail(row) {
   ++publishedPreviewRequest;
   ++rollbackRequest; rollbackPanel = null;
   $('details').replaceChildren(node('h2', row.name || row.id,'workspace-title'));
-  $('details').append(node('p',row.archived ? 'Archived Â· Cannot serve ads' : row.enabled ? 'Enabled' : 'Disabled','record-state'));
+  $('details').append(node('p',row.archived ? 'Archived · Cannot serve ads' : row.enabled ? 'Enabled' : 'Disabled','record-state'));
   const groups = section === 'campaigns' ? [
     ['Overview',['name','sponsor_id','approved','enabled']],
     ['Schedule',['start_at','end_at','share_schedule']],
@@ -823,7 +823,7 @@ async function sponsorStatus(row,panel,action,prepared = null,preparedTicket = n
       panel.append(node('p','Logo link: ' + sponsor.logo_url),node('p','Only Enabled changes from No to Yes. Campaign and creative settings stay unchanged. Nothing has been activated yet.'));
       if (!linked.length) panel.append(node('p','No linked campaigns. Enabling this sponsor alone will not serve any ads.'));
       for (const campaign of linked) {
-        panel.append(node('p',campaign.name + ' (ID: ' + campaign.id + ') â€” ' +
+        panel.append(node('p',campaign.name + ' (ID: ' + campaign.id + ') — ' +
           (campaign.may_deliver ? (campaign.scheduled_for_later ? 'May deliver during its future schedule.' : 'May deliver now or during its remaining schedule.') : 'Not eligible to deliver under its current flags, dates, or allocation.') +
           ' Approved: ' + (campaign.approved ? 'Yes' : 'No') + '. Enabled: ' + (campaign.enabled ? 'Yes' : 'No') + '.'));
       }
@@ -887,8 +887,8 @@ function sponsorEditPanel(row) {
           !/^[0-9a-f]{64}$/.test(prepared.confirmation || '') ||
           prepared.after?.name !== fields.name || prepared.after?.logo_url !== fields.logo_url ||
           prepared.after?.enabled !== row.enabled) throw Error('Invalid review');
-      summary.append(node('p','Name: ' + row.name + ' â†’ ' + fields.name),
-        node('p','Logo: ' + row.logo_url + ' â†’ ' + fields.logo_url),
+      summary.append(node('p','Name: ' + row.name + ' → ' + fields.name),
+        node('p','Logo: ' + row.logo_url + ' → ' + fields.logo_url),
         node('p','Enabled remains ' + (row.enabled ? 'Yes' : 'No') + '. Check that the new logo image loads before confirming.'));
       const confirm = node('button','Confirm sponsor changes'); confirm.type = 'button'; summary.append(confirm);
       confirm.onclick = async () => {
@@ -1181,13 +1181,13 @@ function render() {
   if (section === 'media') { renderMediaLibrary(); return; }
   if (archiveMode) for (const tab of archiveTabs.children) tab.setAttribute('aria-pressed',String(tab.textContent === ({sponsors:'Sponsors',campaigns:'Campaigns',creatives:'Ad creatives',drafts:'Drafts'})[section]));
   const titles = {campaigns:'Campaigns',creatives:'Ad creatives',sponsors:'Sponsors',drafts:'Drafts'};
-  $('browse-title').textContent = archiveMode ? 'Archive Â· ' + titles[section] : titles[section];
+  $('browse-title').textContent = archiveMode ? 'Archive · ' + titles[section] : titles[section];
   $('browse-description').textContent = archiveMode ? 'Archived records are kept here separately from active work.' : section === 'drafts' ? 'Continue saved work without changing ad delivery.' : section === 'campaigns' ? 'Manage campaigns and the ads within them.' : section === 'creatives' ? 'Manage the ads within your campaigns.' : 'Inspect sponsor records and their campaigns.';
   $('library-search').placeholder = 'Search ' + titles[section].toLowerCase() + ' by name or ID';
   $('campaign-count').textContent = String(catalog.campaigns.length);
   $('creative-count').textContent = String(catalog.creatives.length);
   $('draft-count').textContent = String(drafts.length);
-  $('campaign-subtotal').textContent = catalog.campaigns.filter(row => row.enabled && !row.archived).length + ' enabled Â· ' + catalog.campaigns.filter(row => row.archived).length + ' archived';
+  $('campaign-subtotal').textContent = catalog.campaigns.filter(row => row.enabled && !row.archived).length + ' enabled · ' + catalog.campaigns.filter(row => row.archived).length + ' archived';
   $('creative-subtotal').textContent = catalog.creatives.filter(row => row.enabled && row.approved && !row.archived).length + ' approved and enabled';
   $('draft-subtotal').textContent = 'Not served to users';
   $('guide-sponsor-status').textContent = catalog.sponsors.filter(row => row.enabled && !row.archived).length + ' enabled';
@@ -1228,14 +1228,14 @@ function renderMediaLibrary() {
   for (const asset of assets) {
     const tr = node('tr');
     const folder = node('select'); folder.append(new Option('Unfiled',''));
-    for (const item of mediaLibrary.folders) folder.append(new Option(item.name + ' Â· ' + (catalog.sponsors.find(row => row.id === item.sponsor_id)?.name || item.sponsor_id), item.id));
+    for (const item of mediaLibrary.folders) folder.append(new Option(item.name + ' · ' + (catalog.sponsors.find(row => row.id === item.sponsor_id)?.name || item.sponsor_id), item.id));
     folder.value = asset.folder_id || '';
     const move = node('button','Move','secondary'); move.type = 'button';
     move.onclick = async () => { move.disabled = true; try { await moveMediaAsset({asset_id:asset.id,folder_id:folder.value || null}); asset.folder_id = folder.value || null; renderMediaLibrary(); } catch { move.disabled = false; notice('The media file could not be moved. Refresh the library and try again.',true); } };
     const folderCell = node('td'); folderCell.append(folder,move);
-    tr.append(node('td',asset.name || asset.id),node('td',asset.content_type || asset.slot),folderCell,node('td',asset.draft_id || 'â€”')); $('records').append(tr);
+    tr.append(node('td',asset.name || asset.id),node('td',asset.content_type || asset.slot),folderCell,node('td',asset.draft_id || '—')); $('records').append(tr);
   }
-  $('summary').textContent = assets.length + ' files Â· ' + mediaLibrary.folders.length + ' folders';
+  $('summary').textContent = assets.length + ' files · ' + mediaLibrary.folders.length + ' folders';
   $('details').replaceChildren();
   const panel = node('section',undefined,'media-library-panel'); panel.append(node('h2','Sponsor folders'),node('p','Folders can contain nested subfolders. Existing files remain private until attached to a creative and published.','muted'));
   const form = node('form',undefined,'folder-form');
@@ -1244,8 +1244,8 @@ function renderMediaLibrary() {
   const nameInput = node('input'); nameInput.placeholder = 'Folder name'; nameInput.maxLength = 120; nameInput.required = true;
   sponsor.onchange = () => { parent.replaceChildren(new Option('Top-level folder','')); for (const folder of mediaLibrary.folders.filter(folder => folder.sponsor_id === sponsor.value)) parent.append(new Option(folder.name,folder.id)); };
   const create = node('button','Create folder'); create.type = 'submit'; form.append(sponsor,nameInput,parent,create);
-  const status = node('p',undefined,'muted'); form.onsubmit = async event => { event.preventDefault(); if (!sponsor.value) { status.textContent = 'Choose a sponsor first.'; return; } create.disabled = true; status.textContent = 'Creating folderâ€¦'; try { const result = await createMediaFolder({name:nameInput.value.trim(),sponsor_id:sponsor.value,parent_id:parent.value || null}); mediaLibrary.folders.push(result.data.folder); nameInput.value = ''; sponsor.dispatchEvent(new Event('change')); status.textContent = 'Folder created.'; renderMediaLibrary(); } catch { status.textContent = 'Folder could not be created. Check your access and try again.'; } finally { create.disabled = false; } };
-  panel.append(form,status); const list = node('ul'); for (const folder of mediaLibrary.folders) { const li = node('li',folder.name + (folder.parent_id ? ' (subfolder)' : '') + ' Â· ' + (catalog.sponsors.find(row => row.id === folder.sponsor_id)?.name || folder.sponsor_id)); list.append(li); } panel.append(list); $('details').append(panel);
+  const status = node('p',undefined,'muted'); form.onsubmit = async event => { event.preventDefault(); if (!sponsor.value) { status.textContent = 'Choose a sponsor first.'; return; } create.disabled = true; status.textContent = 'Creating folder…'; try { const result = await createMediaFolder({name:nameInput.value.trim(),sponsor_id:sponsor.value,parent_id:parent.value || null}); mediaLibrary.folders.push(result.data.folder); nameInput.value = ''; sponsor.dispatchEvent(new Event('change')); status.textContent = 'Folder created.'; renderMediaLibrary(); } catch { status.textContent = 'Folder could not be created. Check your access and try again.'; } finally { create.disabled = false; } };
+  panel.append(form,status); const list = node('ul'); for (const folder of mediaLibrary.folders) { const li = node('li',folder.name + (folder.parent_id ? ' (subfolder)' : '') + ' · ' + (catalog.sponsors.find(row => row.id === folder.sponsor_id)?.name || folder.sponsor_id)); list.append(li); } panel.append(list); $('details').append(panel);
   $('campaign-count').textContent = String(catalog.campaigns.length); $('creative-count').textContent = String(catalog.creatives.length); $('draft-count').textContent = String(drafts.length);
 }
 async function load() {
@@ -1558,7 +1558,7 @@ async function removeSavedMedia(slot,removeButton,preview,status,player) {
   if (!window.confirm('Remove this saved file from the draft? This permanently deletes the private upload.')) return;
   const current = editor, run = generation, uid = user?.uid;
   const active = () => editor === current && generation === run && user?.uid === uid;
-  mediaLock(true); status.textContent = 'Removing saved fileâ€¦';
+  mediaLock(true); status.textContent = 'Removing saved file…';
   try {
     const response = await removeUpload({draft_id: current.id, slot, asset_id: assetId});
     if (!active()) return;
