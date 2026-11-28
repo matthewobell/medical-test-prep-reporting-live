@@ -1,203 +1,40 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Medical Test Prep · Campaign Library</title>
-<style>:root{background:#172747;--panel:#223f65;--inset:#1b3557;--muted:#a9bedc}body{line-height:1.5}h1{font-size:42px;letter-spacing:-1.3px;margin-bottom:0}h2{font-size:28px;letter-spacing:-.7px}.muted,.field-help{color:var(--muted)}button{font-size:16px;font-weight:500;border-radius:13px;padding:15px 22px}.secondary{border-color:#617fa9}.panel{border-radius:28px;padding:38px}.banner{font-size:12px;padding:12px 18px;border-color:#526f95;color:#c2d2e9}label{font-size:16px;margin-bottom:7px}input,select,textarea{font-weight:600;font-size:16px;border:0;border-radius:13px;padding:17px 20px;min-height:55px;color:#172747}select{padding-right:32px}.library-navigation{display:flex;justify-content:space-between;gap:22px;align-items:center;margin-bottom:30px;flex-wrap:wrap}.media-tabs{display:flex;background:var(--inset);border-radius:16px;padding:5px;gap:3px;margin:0}.media-tabs button{padding:12px 22px;border:0}.media-tabs button[aria-pressed="false"]{background:transparent;color:#c5d4e9;border:0}.draft-actions{margin:0;gap:12px}dt{color:var(--muted);font-size:15px;margin-top:23px}dt:first-child{margin-top:0}dd{font-size:17px;margin-top:3px}#draft-metadata{overflow-wrap:anywhere;font-size:14px}#draft-fields{border:0;padding:0;margin:30px 0 0}#draft-fields>legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.editor-grid{grid-template-columns:1fr;gap:30px}.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.creative-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.creative-grid>.field-help{grid-row:3;margin:0}.creative-grid>.field-name{grid-column:1;grid-row:1}.creative-grid>.field-campaign_id{grid-column:2;grid-row:1}.creative-grid>.field-start_at{grid-column:3;grid-row:1}.creative-grid>.field-end_at{grid-column:1;grid-row:2}.creative-grid>.field-platforms{grid-column:2;grid-row:2}.creative-grid>.field-rotation_weight{grid-column:3;grid-row:2}.campaign-grid>.field-start_at,.campaign-grid>.field-end_at{grid-column:1/-1}.targeting-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.section-heading{color:var(--muted);text-transform:uppercase;font-size:14px;letter-spacing:1.6px;margin:0 0 20px}.choices{gap:12px}.choices label{padding:15px 17px;border:1px solid #617fa9;border-radius:13px;min-height:55px}.choices input{padding:0;accent-color:#7daaf0;width:18px;height:18px;min-height:18px}.field-help{font-size:14px;line-height:1.6}.schedule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.schedule-grid>.wide{grid-column:auto;background:var(--inset);border:0;padding:25px;border-radius:20px}.schedule-grid legend{font-size:19px;font-weight:700;float:left;padding:0;margin-bottom:10px;width:100%}.schedule-grid .field-help{clear:both;margin-bottom:18px}.draft-list{margin:18px 0}.draft-entry{border-color:#526f95;padding:18px}.draft-entry legend{font-size:15px;float:none;width:auto}.draft-entry button{font-size:14px}.disclosure{background:var(--inset);border-radius:20px;padding:22px}.disclosure summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:20px;align-items:center}.disclosure summary::-webkit-details-marker{display:none}.disclosure summary:focus-visible{outline:3px solid #a7caff;outline-offset:6px}.disclosure-heading{display:grid;gap:3px}.disclosure-heading strong{text-transform:uppercase;letter-spacing:1.5px;font-size:15px}.disclosure-heading .field-help{margin:0}.disclosure-count{font-size:14px;color:var(--muted);white-space:nowrap}.disclosure-count:after{content:' ▾'}.disclosure[open] .disclosure-count:after{content:' ▴'}.disclosure>.field-grid,.disclosure>.media-tabs{margin-top:25px}.media-tabs button{flex:1;font-size:15px}.media-tabs button[aria-pressed="true"]{background:#d6e1f5;color:#172747}.upload-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.65fr);align-items:center;gap:40px;padding:24px}.upload-controls input[type=file]{background:transparent;color:#fff;font-size:14px;padding:14px 0;font-weight:500;max-width:100%}input::file-selector-button{background:#172747;color:#fff;padding:12px 16px;border:0;border-radius:12px;margin-right:12px;font:inherit}.phone-frame{position:relative;max-width:280px;width:100%;aspect-ratio: .46;border:7px solid #0b1934;outline:1px solid #526f95;border-radius:43px;background:#172747;padding:38px 8px 18px;justify-self:center;overflow:hidden}.phone-frame:before{content:'';position:absolute;background:#0b1934;width:32%;height:18px;top:10px;left:34%;border-radius:15px}.phone-frame.android{border-radius:32px}.phone-frame.android:before{width:16px;height:16px;left:calc(50% - 8px)}.phone-screen{height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}.phone-screen:empty:before{content:'No saved preview loaded';font-size:13px;color:var(--muted);text-align:center}.phone-screen img,.phone-screen video{object-fit:contain;max-height:100%!important;width:100%}#draft-form>.actions{border-top:1px solid #405c82;padding-top:25px;margin-top:24px;justify-content:flex-end}#draft-review{margin-top:28px}.auth input{font-weight:400}.auth p{font-size:14px}#loading{padding:55px}
-@media(max-width:1100px){.panel{padding:28px}.library-navigation{align-items:stretch}.upload-layout{padding:15px 0;gap:20px}.creative-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.creative-grid>.editor-field{grid-column:auto;grid-row:auto}.creative-grid>.field-help{grid-row:auto}.targeting-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:850px){.schedule-grid{grid-template-columns:1fr}h1{font-size:34px}.phone-frame{max-width:230px}}
-@media(max-width:600px){.panel{padding:22px;border-radius:22px}.field-grid,.creative-grid,.targeting-grid,.upload-layout{grid-template-columns:1fr}.library-navigation,.draft-actions{display:grid;width:100%}.draft-actions{grid-template-columns:1fr}.field-grid>.editor-field{grid-column:auto;grid-row:auto}.creative-grid>.field-help{grid-row:auto}.media-tabs{flex-wrap:wrap}.media-tabs button{padding:10px;font-size:13px}.upload-layout{gap:28px}.disclosure{padding:18px}.disclosure-count{font-size:12px}#draft-form>.actions{justify-content:flex-start}button{font-size:15px}dd{font-size:16px}}
-/* Compact spacing keeps the library useful on laptop screens. */
-h1{font-size:32px}h2{font-size:23px}.panel{padding:26px;border-radius:22px}button{font-size:14px;padding:11px 17px;border-radius:10px}.banner{padding:9px 15px;margin-bottom:18px;font-size:11px}label{font-size:14px}input,select,textarea{font-size:14px;padding:12px 15px;min-height:44px}select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23172747' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:35px}.library-navigation{gap:16px;margin-bottom:20px}dt{font-size:13px;margin-top:17px}dd{font-size:14px}.editor-grid{gap:23px}.field-grid{gap:18px}.choices label{min-height:44px;padding:11px 13px}.field-help{font-size:12px}.section-heading{font-size:12px;margin-bottom:15px}.disclosure{padding:18px}.disclosure-heading strong{font-size:13px}.disclosure-count{font-size:12px}.phone-frame{max-width:220px}.upload-layout{padding:16px;gap:28px}#draft-form>.actions{padding-top:20px;margin-top:20px}#draft-metadata{font-size:12px}
-@media(max-width:600px){.panel{padding:18px}h1{font-size:29px}.upload-layout{padding:12px 0}.media-tabs button{font-size:12px;padding:9px}}
-
-/* Approved library design. */
-:root{background:#142947;--panel:#1d3e5e;--inset:#1b2b45;--muted:#b5c8df}
-body{background:#142947;color:white;font-family:Arial,sans-serif}
-
-
-
-
-
-
-
-
-.library-navigation{display:flex;justify-content:space-between;gap:24px;margin-bottom:50px;align-items:center;flex-wrap:wrap}
-
-
-
-.actions{gap:10px}.actions button{font-size:20px;font-weight:650;min-height:60px;padding:15px 28px;border-radius:25px}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@media(max-width:1100px){.actions button{font-size:16px;padding:12px 17px}}
-@media(max-width:850px){.library-navigation{margin-bottom:25px}}
-@media(max-width:500px){.library-navigation{gap:18px}.actions{width:100%}.actions button{flex:1;font-size:13px;padding:10px;min-height:48px}}
-
-/* Keep global form-button sizing from stretching the inline search action. */
-
-
-
-
-
-/* Five-pixel type reduction; search and card metadata keep their current sizes. */
-
-.actions button{font-size:15px}
-
-
-@media(max-width:1100px){.actions button{font-size:11px}}
-
-@media(max-width:500px){.actions button{font-size:8px}}
-
-
-
-
+<style>/* ===== Workspace design · 0. Base: page, text, buttons and form controls ===== */
+:root{--muted:#71819a}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:#f1f4f9;color:#182b47;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;-webkit-font-smoothing:antialiased}
+h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin:0}
+h2{font-size:18px;font-weight:650;letter-spacing:-.3px;margin:0}
+h3{font-size:14px;font-weight:650;margin:0 0 10px}
+.muted,.field-help{color:#71819a}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#draft-editor{background:var(--panel);margin-top:0}
-#draft-editor h2{font-size:23px}
-
-
-
-
-
-
-/* Approved advertiser workspace. */
-
-*{box-sizing:border-box}body{margin:0;background:#f3f6fb;color:#172747;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}button,input,select{font:inherit}button,select{cursor:pointer}button{border:1px solid #d6dfed;background:white;color:#223f65;padding:10px 16px;border-radius:9px;font-weight:600}button:hover{background:#edf3fc}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #82aaff;outline-offset:3px}.primary{background:#3867da;color:white;border-color:#3867da}.primary:hover{background:#2b55bf}select,input{border:1px solid #d6dfed;border-radius:8px;padding:9px 12px;background:white;color:#223f65}h1{font-size:28px;letter-spacing:-.8px;margin:0}h2{font-size:19px;margin:0}h3{font-size:14px;margin:0 0 18px}.muted{color:#71829a}.actions{display:flex;gap:9px;flex-wrap:wrap}summary{cursor:pointer}#status{min-height:20px} 
-
-/* Alternate advertiser workspace: navy identity, restrained light work surfaces. */
-:root{--navy:#142947;--accent:#315c91;--line:#dde5ef;--muted:#71819a}
-body{background:#edf2f8;color:#182b47;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px}
-
-
-
-
-
-
-
-
-
-h1{font-size:27px;letter-spacing:-.7px}h2{font-size:21px;letter-spacing:-.5px}h3{font-size:13px}
-
-button{font-size:13px;min-height:39px;padding:9px 15px;font-weight:600;border-radius:8px;border-color:#ced9e7}
-.primary{background:var(--navy);border-color:var(--navy);color:white}.primary:hover{background:#264566}
-
-
-
-input,select{font-size:13px;min-height:40px;border-color:#d5deeb;border-radius:8px;background:#f8fafd}
-
-
-
-
-
-
-
-
-
-
-
-
-#status{font-size:11px;color:#798aa1}
-
-
-
-/* Final visual refinement: quieter surfaces and consistent alignment. */
-body{background:#f1f4f9;-webkit-font-smoothing:antialiased}
-
-
-
-h1{font-size:28px;font-weight:650;letter-spacing:-.8px}
-h2{font-size:20px;font-weight:650}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+summary{cursor:pointer}
+button,input,select,textarea{font:inherit}
+button,select{cursor:pointer}
+button{min-height:36px;padding:7px 14px;border:1px solid #ced9e7;border-radius:7px;background:#fff;color:#182b47;font-size:13px;font-weight:600}
+button:hover{background:#f3f6fb}
+button.primary,.primary{background:#13284a;border-color:#13284a;color:#fff}
+button.primary:hover{background:#1f3b63}
+button.danger,.danger{border-color:#e3b9bd;color:#a12a33}
+button.danger:hover{background:#fff1f1}
 button:disabled{cursor:not-allowed;opacity:.55}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #82aaff;outline-offset:2px}
+input,select,textarea{min-height:36px;padding:7px 11px;border:1px solid #ced9e7;border-radius:7px;background:#fff;color:#182b47;font-size:13px}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23172747' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+textarea{min-height:76px;resize:vertical}
+input[type=checkbox]{min-height:0;width:16px;height:16px;padding:0;accent-color:#13284a}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.panel{background:#fff;border:1px solid #dfe6ef;border-radius:12px;padding:24px;color:#182b47}
+#status{min-height:20px;font-size:11px;color:#798aa1}
 
-
-[hidden]{display:none!important}.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.panel.auth,#loading{background:white;color:#182b47;border:1px solid #dfe6ef;border-radius:12px}.auth input{width:100%}.auth p,#loading .muted{color:#71819a}.auth button.secondary{color:#223f65;border-color:#ced9e7}.auth form button{width:100%}.panel#draft-editor{background:white;color:#182b47;border:1px solid #dfe6ef;border-radius:12px;padding:28px}.field-help,.muted{color:#71819a}.disclosure,.schedule-grid>.wide{background:#f3f6fa;border:1px solid #dfe6ef}.choices label{border-color:#cdd9e8}.media-tabs{background:#e5ebf4}.media-tabs button[aria-pressed=false]{color:#536985}.media-tabs button[aria-pressed=true]{background:white;color:#142947}.draft-entry{border-color:#cdd9e8}#draft-editor button.secondary{color:#223f65;border-color:#bccbdf}#draft-review{border-color:#cdd9e8}#draft-form>.actions{border-color:#dfe6ef}.upload-controls input[type=file]{color:#223f65}.phone-screen:empty:before{color:#adbed5}#notice{position:sticky;top:0;z-index:20;padding:14px clamp(16px,4vw,48px);background:#e0edff;color:#152d50;border-bottom:2px solid #7192be;box-shadow:0 3px 12px #10203833;font-size:1rem;font-weight:650;overflow-wrap:anywhere}
+/* ===== Kept as-is from the earlier design: in-app ad preview frame and the notice banner ===== */
+.phone-frame{position:relative;max-width:280px;width:100%;aspect-ratio: .46;border:7px solid #0b1934;outline:1px solid #526f95;border-radius:43px;background:#172747;padding:38px 8px 18px;justify-self:center;overflow:hidden}.phone-frame:before{content:'';position:absolute;background:#0b1934;width:32%;height:18px;top:10px;left:34%;border-radius:15px}.phone-frame.android{border-radius:32px}.phone-frame.android:before{width:16px;height:16px;left:calc(50% - 8px)}.phone-screen{height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}.phone-screen:empty:before{content:'No saved preview loaded';font-size:13px;color:var(--muted);text-align:center}.phone-screen img,.phone-screen video{object-fit:contain;max-height:100%!important;width:100%}
+@media(max-width:850px){.phone-frame{max-width:230px}}
+.phone-frame{max-width:220px}
+.phone-screen:empty:before{color:#adbed5}#notice{position:sticky;top:0;z-index:20;padding:14px clamp(16px,4vw,48px);background:#e0edff;color:#152d50;border-bottom:2px solid #7192be;box-shadow:0 3px 12px #10203833;font-size:1rem;font-weight:650;overflow-wrap:anywhere}
 #notice[role="alert"]{background:#fff0ed;color:#761f17;border-bottom-color:#bb473b}
-
-
-
-
-
-
-/* Ensure the publishing summary stays legible on the light editor surface. */
-#draft-review{background:#f7f9fc;color:#182b47;border:1px solid #d6e0ed;padding:22px;border-radius:12px}
-#draft-review h2,#draft-review h3{color:#182b47}
-#draft-review dt{color:#536985;font-weight:600;margin-top:16px}
-#draft-review dd{color:#253b59;white-space:pre-wrap;line-height:1.6}
-#draft-review .muted{color:#71819a}
-#draft-review button{margin-top:18px}
-
-/* Full-ad preview: the device switches change the frame, not delivery. */
 .phone-frame.ad-preview-frame{max-width:330px;aspect-ratio:auto;padding:8px;background:#0b1426;border-radius:43px}
 .ad-preview-frame.android{border-radius:30px}
 .ad-preview-frame:before{z-index:1;top:10px}
@@ -216,7 +53,6 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .ad-preview .ad-preview-body_text{font-size:3.42cqw;line-height:1.2;font-weight:500;margin:5.8cqw 8cqw 0}
 .ad-preview .ad-preview-cta_text{display:flex;align-items:center;justify-content:center;width:67.5cqw;min-height:12.3cqw;margin:8.6cqw auto 0;padding:2cqw 4cqw;border-radius:7cqw;background:#c6c9cf;color:#1b2942;font-size:3.42cqw;font-weight:650;line-height:1.3}
 .ad-preview .ad-preview-disclaimer_text{font-size:2.35cqw;line-height:1.35;color:#a9bad2;margin:3cqw 6.15cqw 0}
-
 /* ===== Workspace design · 1. Page frame, sidebar and header (matches the approved renders) ===== */
 .shell{display:grid;grid-template-columns:200px minmax(0,1fr);min-height:100vh}
 .shell:has(>#workspace-navigation[hidden]){grid-template-columns:1fr}
@@ -383,6 +219,89 @@ td small.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;f
 #sponsor-edit-panel input{height:36px;padding:6px 12px;border:1px solid #ced9e7;border-radius:7px}
 @media(max-width:950px){#details dl{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){#details{padding:16px}#details dl,#details .note dl{grid-template-columns:1fr}.action-group.end{margin-left:0;justify-content:flex-start}.action-group .detail-note{text-align:left}#details .detail-head{flex-direction:column-reverse;gap:8px}}
+
+/* ===== Workspace design · 4. Editor, publishing summary, forms and sign-in ===== */
+#draft-editor h2{font-size:20px}
+#draft-editor>.muted{margin:6px 0 0;font-size:12px;line-height:1.6}
+#draft-metadata{margin-top:4px;font-size:11px;overflow-wrap:anywhere}
+#draft-fields{margin:20px 0 0;padding:0;border:0;min-width:0}
+#draft-fields>legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.editor-grid{display:grid;gap:18px}
+.section-heading{margin:0 0 12px;color:#6b7c94;font-size:11px;font-weight:650;letter-spacing:1.2px;text-transform:uppercase}
+.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px;align-items:start}
+.creative-grid,.targeting-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.field-grid>.field-help{grid-column:1/-1;margin:0;font-size:12px}
+.editor-field{display:grid;gap:5px;min-width:0}
+.editor-field>label{color:#4b5b73;font-size:12px;font-weight:600}
+.editor-field input:not([type=checkbox]),.editor-field select,.editor-field textarea{width:100%}
+.field-help{font-size:12px;line-height:1.55}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.choices label{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:6px 12px;border:1px solid #ced9e7;border-radius:7px;background:#fff;font-size:13px;cursor:pointer}
+.schedule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.schedule-grid>.wide{min-width:0;margin:0;padding:16px;background:#f7f9fc;border:1px solid #e3e9f2;border-radius:10px}
+.schedule-grid>.wide>legend{float:left;width:100%;padding:0;margin-bottom:4px;font-size:14px;font-weight:650}
+.schedule-grid>.wide>.field-help{clear:both;margin:0 0 10px}
+.draft-list{display:grid;gap:10px;margin:10px 0}
+.draft-entry{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:0;padding:12px;background:#fff;border:1px solid #dce4ee;border-radius:8px}
+.draft-entry>legend{padding:0 4px;font-size:12px;font-weight:650;color:#4b5b73}
+.draft-entry>button,.draft-entry .field-creative_ids{grid-column:1/-1}
+.draft-entry>button{justify-self:start;min-height:30px;padding:4px 10px;font-size:12px}
+.disclosure{padding:14px 16px;background:#f7f9fc;border:1px solid #e3e9f2;border-radius:10px}
+.disclosure summary{display:flex;justify-content:space-between;align-items:center;gap:16px;list-style:none}
+.disclosure summary::-webkit-details-marker{display:none}
+.disclosure-heading{display:grid;gap:2px}
+.disclosure-heading strong{font-size:12px;letter-spacing:1.2px;text-transform:uppercase}
+.disclosure-heading .field-help{margin:0}
+.disclosure-count{color:#71819a;font-size:11px;white-space:nowrap}
+.disclosure-count::after{content:' \25BE'}
+.disclosure[open] .disclosure-count::after{content:' \25B4'}
+.disclosure>.field-grid,.disclosure>.media-tabs{margin-top:16px}
+.disclosure>.field-help{margin:10px 0 0}
+.media-tabs{display:flex;gap:3px;margin:0;padding:3px;background:#e5ebf4;border-radius:9px}
+.media-tabs button{flex:1;min-height:32px;padding:5px 12px;border:0;border-radius:7px;background:transparent;color:#536985;font-size:12px}
+.media-tabs button[aria-pressed=true]{background:#fff;color:#13284a;box-shadow:0 1px 2px #14294714}
+.upload-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.6fr);align-items:start;gap:28px;padding:14px 0 0}
+.upload-controls{display:grid;gap:8px;align-content:start;min-width:0}
+.upload-controls>label{color:#4b5b73;font-size:12px;font-weight:600}
+.upload-controls p{margin:0;font-size:12px}
+.draft-entry input:not([type=checkbox]),.draft-entry select{min-width:0}
+.upload-controls>button{justify-self:start}
+.upload-controls input[type=file]{min-height:0;padding:0;border:0;background:transparent;color:#223f65;font-size:12px;max-width:100%}
+input::file-selector-button{margin-right:10px;padding:7px 12px;border:0;border-radius:7px;background:#13284a;color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.upload-controls .media-tabs{max-width:260px}
+#draft-form>.actions{justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid #e5eaf2}
+#draft-status{min-height:18px;margin:14px 0 0;color:#4b5b73;font-size:12px}
+#draft-review{margin-top:20px;padding:18px 20px;background:#f7f9fc;border:1px solid #d6e0ed;border-radius:10px;color:#182b47}
+#draft-review h2{font-size:16px}#draft-review h3{margin:14px 0 6px;font-size:13px}
+#draft-review p{margin:6px 0 0;font-size:12px}
+#draft-review dl{margin:8px 0 0}
+#draft-review dt{margin-top:12px;color:#536985;font-size:12px;font-weight:600}
+#draft-review dd{margin:2px 0 0;color:#253b59;font-size:13px;line-height:1.6;white-space:pre-wrap}
+#draft-review button{margin-top:14px}
+#sponsor-create{margin-bottom:20px}
+#sponsor-create h2{margin-bottom:6px}
+#sponsor-create>p{margin:0 0 14px;color:#4b5b73;font-size:12px}
+#sponsor-create-fields{margin:0;padding:0;border:0}
+#sponsor-create-fields>legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+#sponsor-create .editor-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#sponsor-create .editor-grid label{display:grid;gap:5px;color:#4b5b73;font-size:12px;font-weight:600}
+#sponsor-create-status{min-height:18px;font-size:12px;color:#4b5b73}
+.auth{max-width:480px;margin:32px auto}
+.auth h2{margin-bottom:6px}
+.auth p{margin:8px 0;font-size:13px;color:#71819a}
+.auth label{display:block;margin:14px 0 5px;font-size:12px;font-weight:600;color:#4b5b73}
+.auth input{width:100%}
+.auth form button,#google{width:100%;margin-top:6px}
+.auth form button:first-of-type{background:#13284a;border-color:#13284a;color:#fff}
+#loading{max-width:480px;margin:32px auto;text-align:center}
+#loading .muted{margin:6px 0 0}
+.media-library-panel h2{margin-bottom:4px}
+.folder-form{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.folder-form input{flex:1;min-width:160px}
+#records td select{min-height:30px;margin-right:6px;font-size:12px}
+#records td select+button{min-height:30px;padding:4px 10px;font-size:12px}
+@media(max-width:1000px){.creative-grid,.targeting-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.upload-layout{grid-template-columns:1fr}.phone-frame{justify-self:center}}
+@media(max-width:650px){.field-grid,.creative-grid,.targeting-grid,.schedule-grid,#sponsor-create .editor-grid{grid-template-columns:1fr}#draft-form>.actions{justify-content:stretch}#draft-form>.actions button{flex:1}.panel{padding:18px}}
 </style></head><body>
 <aside id="notice" role="status" aria-live="polite" hidden></aside>
 <div class="shell"><aside id="workspace-navigation" hidden><div class="workspace-logo"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="25" fill="none" stroke="#4c6695" stroke-width="9"/><path d="M32 7a25 25 0 0 1 25 25" fill="none" stroke="white" stroke-width="9" stroke-linecap="round"/><circle cx="32" cy="32" r="10" fill="white"/></svg><span>Medical Test Prep<small>Advertiser workspace</small></span></div><p class="nav-label" id="nav-library">Library</p><nav aria-labelledby="nav-library"><button id="tab-campaigns" aria-pressed="false">Campaigns</button><button id="tab-creatives" aria-pressed="false">Ad creatives</button><button id="tab-drafts" aria-pressed="false">Drafts</button><button id="tab-archive" aria-pressed="false">Archive</button><button id="tab-media" aria-pressed="false">Media library</button></nav><p class="nav-label" id="nav-insights">Insights</p><nav aria-labelledby="nav-insights"><a href="./staff-reporting.html">Reports</a></nav><p class="nav-label" id="nav-sponsors">Sponsors</p><nav aria-labelledby="nav-sponsors"><button id="tab-sponsors" aria-pressed="false">Sponsors</button><button id="new-sponsor" type="button">New sponsor</button></nav><p class="aside-foot">Admin and ads-team access only</p></aside><div class="content page"><header><div class="header-logo">Medical Test Prep</div><div id="library-filters" hidden><label class="header-label" for="sponsor-filter">Sponsor</label><select id="sponsor-filter"><option value="all">All sponsors</option></select></div><p id="account" class="account">Admin and ads-team access only</p><button id="sign-out" class="secondary" hidden>Log Out</button></header>
@@ -390,4 +309,4 @@ td small.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;f
 <section id="loading" class="panel" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><h2>Loading your campaign library</h2><p class="muted">Checking staff access and retrieving the advertiser catalog.</p></section>
 <section id="library" hidden><div id="browse-panel"><section id="sponsor-create" class="panel" hidden aria-labelledby="sponsor-create-title"><h2 id="sponsor-create-title">New sponsor</h2><p>Creates a disabled sponsor in the current ad environment. It creates no campaigns and grants no reporting access. This form is not saved as a draft.</p><form id="sponsor-create-form"><fieldset id="sponsor-create-fields"><legend>Sponsor details</legend><div class="editor-grid"><label>Name<input id="sponsor-create-name" type="text" required maxlength="200" autocomplete="organization"></label><label>HTTPS logo link<input id="sponsor-create-logo" type="url" required maxlength="2048" placeholder="https://example.com/logo.png"></label></div></fieldset><p id="sponsor-create-status" role="status" aria-live="polite"></p><div class="actions"><button id="sponsor-create-review" type="submit">Save sponsor</button><button id="sponsor-create-close" type="button" class="secondary">Close</button></div></form><section id="sponsor-create-summary" class="note" hidden aria-label="Sponsor creation review"></section></section><div class="intro"><div><h1 id="browse-title">Campaigns</h1><p id="browse-description" class="muted">Manage campaigns and the ads within them.</p></div><div class="actions"><button id="new-creative">+ Create ad</button><button id="new-campaign" class="primary">+ Create campaign</button></div></div><div class="stats"><div class="stat"><span>Campaigns</span><strong id="campaign-count">0</strong><small id="campaign-subtotal">0 enabled · 0 archived</small></div><div class="stat"><span>Ad creatives</span><strong id="creative-count">0</strong><small id="creative-subtotal">0 approved and enabled</small></div><div class="stat"><span>Saved drafts</span><strong id="draft-count">0</strong><small id="draft-subtotal">Not served to users</small></div></div><section class="setup-guide card" aria-label="Campaign setup guide"><div><h2>Set up a sponsored ad</h2><p>Create the sponsor, set its campaign dates and targeting, then attach an ad. Settings are checked automatically before publishing.</p></div><ol><li><button id="guide-sponsor" type="button">1. Sponsor</button><small id="guide-sponsor-status"></small></li><li><button id="guide-campaign" type="button">2. Campaign</button><small id="guide-campaign-status"></small></li><li><button id="guide-creative" type="button">3. Ad creative</button><small id="guide-creative-status"></small></li></ol></section><section class="card" aria-label="Library records"><div class="toolbar"><form id="search-form" role="search"><input id="library-search" type="search" aria-label="Search library records" maxlength="200" placeholder="Search campaigns or sponsors"><button type="submit">Search</button></form><select id="campaign-filter" aria-label="Campaign"><option value="all">All campaigns</option></select><select id="record-status" aria-label="Filter status"><option value="all">All statuses</option><option value="active">Active records</option><option value="archived">Archived</option><option value="approved">Approved</option><option value="awaiting">Awaiting approval</option><option value="unapproved">Not approved</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></div><div class="table-wrap" tabindex="0" aria-label="Record table; scroll for more results"><table><thead id="record-head"></thead><tbody id="records"></tbody></table></div><p id="summary" class="table-foot" role="status" aria-live="polite"></p></section><section id="details" class="card marketplace-details" aria-label="Selected record details"></section><div class="library-footer"><button id="refresh" class="secondary">Refresh library</button><p id="fetched" class="read-time"></p></div></div><section id="draft-editor" class="panel" hidden aria-labelledby="editor-title"><h2 id="editor-title"></h2><p class="muted">Save unfinished work as a draft, or publish after automatic checks. Publishing paused saves the settings with Approved: No and Enabled: No. Approve and start delivery from the record’s detail panel. Dates use your browser’s local time zone and are stored in UTC.</p><p id="draft-metadata" class="muted"></p><form id="draft-form"><fieldset id="draft-fields"><legend class="muted">Draft configuration</legend><div id="editor-fields" class="editor-grid"></div></fieldset><p id="draft-status" role="status" aria-live="polite"></p><div class="actions"><button id="save-draft" type="submit">Save draft</button><button id="review-draft" type="button" class="primary">Publish paused</button><button id="close-draft" type="button" class="secondary">Back to library</button><button id="reload-draft" type="button" class="secondary" hidden>Reload saved version</button></div></form><section id="draft-review" class="banner" hidden aria-label="Saved draft review"></section></section></section>
 <noscript><p>Enable JavaScript to sign in and view the campaign library.</p></noscript></main></div></div>
-<script type="module" src="./admin-library.js?v=39"></script></body></html>
+<script type="module" src="./admin-library.js?v=40"></script></body></html>
