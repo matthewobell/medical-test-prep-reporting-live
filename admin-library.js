@@ -329,7 +329,7 @@ function detail(row) {
     pause.onclick = () => pauseCampaign(row,pause); $('details').append(pause);
   }
   if (section === 'campaigns' && row.enabled === false && row.approved === true) {
-    const resume = node('button','Resume campaign','related'); resume.type = 'button';
+    const resume = node('button','Start delivery','related'); resume.type = 'button';
     resume.onclick = () => {
       if (resumeBusyTicket !== null || !user || !catalog || editor) return;
       if (resumePanel) resumePanel.remove();
@@ -343,7 +343,7 @@ function detail(row) {
     pause.onclick = () => pauseCreative(row,pause); $('details').append(pause);
   }
   if (section === 'creatives' && row.approved === false && row.enabled === false) {
-    const approve = node('button','Review creative approval','related'); approve.type = 'button';
+    const approve = node('button','Approve','related'); approve.type = 'button';
     approve.onclick = () => {
       if (!user || !catalog || editor || approvalBusyTicket !== null) return;
       if (approvalPanel) approvalPanel.remove();
@@ -353,7 +353,7 @@ function detail(row) {
     $('details').append(approve);
   }
   if (section === 'creatives' && row.approved === true && row.enabled === false) {
-    const activate = node('button','Review creative activation','related'); activate.type = 'button';
+    const activate = node('button','Start delivery','related'); activate.type = 'button';
     activate.onclick = () => {
       if (!user || !catalog || editor || activationBusyTicket !== null) return;
       if (activationPanel) activationPanel.remove();
@@ -363,7 +363,7 @@ function detail(row) {
     $('details').append(activate);
   }
   if (section === 'campaigns' && row.approved === false && row.enabled === false) {
-    const approve = node('button','Review campaign approval','related'); approve.type = 'button';
+    const approve = node('button','Approve','related'); approve.type = 'button';
     approve.onclick = () => {
       if (!user || !catalog || editor || campaignApprovalBusyTicket !== null) return;
       if (campaignApprovalPanel) campaignApprovalPanel.remove();
@@ -390,7 +390,7 @@ function recordActions(row,kind) {
   if (!archived) area.append(node('p','Archive a paused record before deleting it.','muted'));
   $('details').append(area);
   if (archived) for (const button of $('details').querySelectorAll('button.related')) {
-    if (/^(Resume|Review .*activation|Review .*approval|Restore previous settings)/.test(button.textContent)) button.disabled = true;
+    if (/^(Approve|Start delivery|Review .*activation|Restore previous settings)/.test(button.textContent)) button.disabled = true;
   }
 }
 async function manageRecord(kind,id,operation,area) {
@@ -1128,7 +1128,7 @@ function updateCampaigns() {
 }
 function matchesStatus(row) {
   const status = $('record-status').value;
-  return status === 'all' || status === 'archived' && row.archived === true || status === 'active' && row.archived !== true || status === 'approved' && row.approved === true || status === 'unapproved' && row.approved === false || status === 'enabled' && row.enabled === true || status === 'disabled' && row.enabled === false;
+  return status === 'all' || status === 'archived' && row.archived === true || status === 'active' && row.archived !== true || status === 'approved' && row.approved === true || status === 'unapproved' && row.approved === false || status === 'awaiting' && row.approved === false && row.enabled === false && row.archived !== true || status === 'enabled' && row.enabled === true || status === 'disabled' && row.enabled === false;
 }
 function renderTable(rows) {
   const columns = section === 'campaigns' ? ['Campaign','Approval','Enabled','Platforms','Exposure share','Ad creatives'] :
@@ -1903,12 +1903,17 @@ async function campaignPublish(confirmation = null, preparedTicket = null) {
     if (generation === run && user?.uid === uid && editor === current) { mediaLock(false); $('review-draft').disabled = false; }
   }
 }
-// One user action retains each server-side save, validation, approval and delivery check.
-async function publishEditor(startDelivery = false) {
+// Publish paused: save, check, confirm, then publish with Approved: No and Enabled: No.
+// Approval and delivery are separate actions in the record's detail panel.
+async function publishEditor() {
   if (workflowBusy || draftBusy || !editor || !user) return;
   if (!$('draft-form').reportValidity()) return;
   if (publishProgress?.uncertain) {
     $('draft-status').textContent = 'The last change could not be confirmed. Refresh the library and check the record before publishing again.';
+    return;
+  }
+  if (publishProgress?.published && !dirty) {
+    $('draft-status').textContent = 'These settings are already published. Approve them from the record’s detail panel.';
     return;
   }
   workflowBusy = true;
@@ -1925,72 +1930,49 @@ async function publishEditor(startDelivery = false) {
     if (!/^[0-9a-f]{64}$/.test(data.confirmation || '')) throw Error('The server could not confirm these settings.');
     return data.confirmation;
   };
-  const write = async (call, payload) => {
-    publishProgress.uncertain = true;
-    const data = receipt((await call(payload)).data);
-    return data;
-  };
   try {
     if (!publishProgress || dirty) {
       if (publishProgress?.published) throw Error('Settings were already published. Reopen the record to make further edits.');
       const saved = await saveEditorDraft();
       if (!saved || !active()) return;
-      publishProgress = {published:false, approved:false, target:null, uncertain:false};
+      publishProgress = {published:false, target:null, uncertain:false};
     }
     const current = editor;
     const payload = {draft_id:current.id, expected_revision:current.revision};
     const progress = publishProgress;
-    if (!progress.published) {
-      stage = 'Checking settings'; $('draft-status').textContent = stage + '…';
-      const review = validateReview(receipt((await fetchReview(payload)).data), current);
-      if (!review.checks_passed) {
-        $('draft-status').textContent = review.issues.filter(i => i.severity === 'error').map(i => i.message).join(' ');
-        return;
-      }
-      const values = current.fields;
-      const parent = current.kind === 'campaign'
-        ? catalog.sponsors.find(row => row.id === values.sponsor_id)
-        : catalog.campaigns.find(row => row.id === values.campaign_id);
-      const summary = [values.name, parent?.name || '',
-        'Dates: ' + (values.start_at || 'No start date') + ' — ' + (values.end_at || 'No end date'),
-        'Targeting: ' + [values.exam || parent?.exam, values.module || parent?.module, ...(values.platforms || [])].filter(Boolean).join(', '),
-        startDelivery ? 'Publish and enable this record? Delivery still depends on its sponsor, campaign, schedule and eligible ads.' : 'Publish and approve this record, keeping it paused?',
-        ...review.issues.filter(i => i.severity === 'warning').map(i => i.message)].filter(Boolean).join('\n\n');
-      if (!window.confirm(summary)) { $('draft-status').textContent = 'Draft saved. Publishing cancelled.'; return; }
-      const create = current.kind === 'campaign' ? requestCampaignCreate : requestCreativeCreate;
-      const prepare = current.target_id ? (current.kind === 'campaign' ? prepareCampaignPublish : prepareCreativePublish) : create;
-      const publish = current.target_id ? (current.kind === 'campaign' ? publishCampaignDraft : publishCreativeDraft) : create;
-      stage = 'Publishing settings'; $('draft-status').textContent = stage + '…';
-      const prepared = receipt((await prepare(payload)).data);
-      const checked = validateReview(prepared.review, current);
-      if (!checked.checks_passed) throw Error('Settings changed. Check the draft and try again.');
-      const target = current.target_id || prepared.new_target_id;
-      if (typeof target !== 'string' || !target.startsWith(current.kind + '-')) throw Error('Invalid record identifier.');
-      const result = await write(publish, {...payload, confirmation:token(prepared)});
-      if (result.target_id !== target || result.draft_id !== current.id || result.revision !== current.revision ||
-          (current.target_id ? result.settings_published !== true : result.created !== true)) throw Error('Publication could not be confirmed.');
-      progress.target = target; progress.published = true; progress.uncertain = false;
+    const create = current.kind === 'campaign' ? requestCampaignCreate : requestCreativeCreate;
+    const prepare = current.target_id ? (current.kind === 'campaign' ? prepareCampaignPublish : prepareCreativePublish) : create;
+    const publish = current.target_id ? (current.kind === 'campaign' ? publishCampaignDraft : publishCreativeDraft) : create;
+    // One server check: it validates the saved draft and issues the one-time confirmation code.
+    stage = 'Checking settings'; $('draft-status').textContent = stage + '…';
+    const prepared = receipt((await prepare(payload)).data);
+    const review = validateReview(prepared.review, current);
+    if (!review.checks_passed) {
+      $('draft-status').textContent = review.issues.filter(i => i.severity === 'error').map(i => i.message).join(' ');
+      return;
     }
-    const approval = current.kind === 'campaign' ? requestCampaignApproval : requestCreativeApproval;
-    if (!progress.approved) {
-      stage = 'Approving settings'; $('draft-status').textContent = stage + '…';
-      const prepared = receipt((await approval({action:'prepare', target_id:progress.target})).data);
-      if (prepared.target_id !== progress.target) throw Error('Unexpected approval record.');
-      const result = await write(approval, {action:'approve', target_id:progress.target, confirmation:token(prepared)});
-      if (result.target_id !== progress.target || result.approved !== true || result.enabled !== false) throw Error('Approval could not be confirmed.');
-      progress.approved = true; progress.uncertain = false;
-    }
-    if (startDelivery) {
-      stage = 'Enabling delivery'; $('draft-status').textContent = stage + '…';
-      const activate = current.kind === 'campaign' ? requestCampaignResume : requestCreativeActivation;
-      const prepared = receipt((await activate({action:'prepare', target_id:progress.target})).data);
-      if (prepared.target_id !== progress.target) throw Error('Unexpected delivery record.');
-      const result = await write(activate, {action:current.kind === 'campaign' ? 'resume' : 'activate', target_id:progress.target, confirmation:token(prepared)});
-      if (result.target_id !== progress.target || result.enabled !== true || result.approved !== true) throw Error('Delivery status could not be confirmed.');
-      progress.uncertain = false;
-    }
+    const target = current.target_id || prepared.new_target_id;
+    if (typeof target !== 'string' || !target.startsWith(current.kind + '-')) throw Error('Invalid record identifier.');
+    const values = current.fields;
+    const parent = current.kind === 'campaign'
+      ? catalog.sponsors.find(row => row.id === values.sponsor_id)
+      : catalog.campaigns.find(row => row.id === values.campaign_id);
+    const summary = [values.name, parent?.name || '',
+      'Starts: ' + display('start_at', values.start_at) + '\nEnds: ' + display('end_at', values.end_at),
+      'Targeting: ' + [values.exam || parent?.exam, values.module || parent?.module, ...(values.platforms || [])].filter(Boolean).join(', '),
+      'Publish these settings paused? The record will be Approved: No and Enabled: No until it is approved and delivery is started from its detail panel.',
+      ...review.issues.filter(i => i.severity === 'warning').map(i => i.message)].filter(Boolean).join('\n\n');
+    if (!window.confirm(summary)) { $('draft-status').textContent = 'Draft saved. Publishing cancelled.'; return; }
+    if (!active()) return;
+    stage = 'Publishing settings'; $('draft-status').textContent = stage + '…';
+    progress.uncertain = true;
+    const result = receipt((await publish({...payload, confirmation:token(prepared)})).data);
+    if (result.target_id !== target || result.draft_id !== current.id || result.revision !== current.revision ||
+        (current.target_id ? result.settings_published !== true : result.created !== true) ||
+        result.approved === true || result.enabled === true) throw Error('Publication could not be confirmed.');
+    progress.target = target; progress.published = true; progress.uncertain = false;
     await load();
-    notice(startDelivery ? 'Published and enabled. Delivery follows the saved schedule and eligibility rules.' : 'Published and approved. This record is paused.');
+    notice('Published paused. Approved: No. Enabled: No. Approve it from the record’s detail panel, then start delivery.');
   } catch (error) {
     if (active()) $('draft-status').textContent = stage + ' could not finish. ' +
       (publishProgress?.published ? 'Settings are published. ' : '') +
@@ -2000,8 +1982,7 @@ async function publishEditor(startDelivery = false) {
     document.body.inert = false; workflowBusy = false;
   }
 }
-$('review-draft').onclick = () => publishEditor(false);
-$('publish-start').onclick = () => publishEditor(true);
+$('review-draft').onclick = () => publishEditor();
 
 function leaveEditor() {
   if (draftBusy || (dirty && !window.confirm('Discard unsaved draft changes and return to the library?'))) return false;
