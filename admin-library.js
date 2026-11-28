@@ -1148,7 +1148,8 @@ function renderTable(rows) {
   const columns = section === 'campaigns' ? ['Campaign','Approval','Enabled','Platforms','Exposure share','Ad creatives'] :
     section === 'creatives' ? ['Ad creative','Approval','Enabled','Platforms','Rotation weight'] :
     section === 'sponsors' ? ['Sponsor','Enabled','Campaigns'] : ['Draft','Type','Saved','Revision'];
-  const header = node('tr'); for (const title of columns) header.append(node('th',title));
+  const numeric = ['Ad creatives','Rotation weight','Campaigns','Revision'];
+  const header = node('tr'); for (const title of columns) header.append(node('th',title,numeric.includes(title) ? 'num' : undefined));
   $('record-head').replaceChildren(header); $('records').replaceChildren();
   if (!rows.length) { const tr = node('tr'), td = node('td','No records match these filters.','empty'); td.colSpan = columns.length; tr.append(td); $('records').append(tr); return 0; }
   const shown = Math.min(rows.length, Math.max(visibleCount, rows.findIndex(row => row.id === selected) + 1));
@@ -1157,17 +1158,23 @@ function renderTable(rows) {
     const td = node('td'), button = node('button',row.name || row.id,'name-button');
     button.setAttribute('aria-pressed',String(row.id === selected)); button.onclick = () => selectRecord(row.id); td.append(button);
     const parent = section === 'campaigns' ? name('sponsors',row.sponsor_id) : section === 'creatives' ? name('campaigns',row.campaign_id) : row.id;
-    td.append(node('small',parent));
+    td.append(node('small',parent,['sponsors','drafts'].includes(section) ? 'mono' : undefined));
     if (row.archived || section === 'drafts' && row.status === 'archived') td.append(node('small','Archived'));
     tr.append(td);
     const approval = value => { const cell = node('td'); cell.append(node('span',value === true ? 'Approved' : value === false ? 'Not approved' : 'Not set',value === true ? 'badge' : 'badge draft')); return cell; };
-    const enabled = value => node('td',value === true ? 'Yes' : value === false ? 'No' : 'Not set');
+    const enabled = value => { const cell = node('td'); cell.append(node('span',value === true ? 'Yes' : value === false ? 'No' : 'Not set',value === true ? 'state on' : 'state')); return cell; };
+    const platforms = list => { const cell = node('td'); if (!list?.length) cell.textContent = list ? 'None' : 'Not set'; for (const p of list || []) cell.append(node('span',p === 'ios' ? 'iOS' : 'Android','chip')); return cell; };
     if (section === 'campaigns') {
       const shares = [...new Set((row.share_schedule || []).map(entry => entry.percent == null ? 'Not set' : entry.percent + '%'))].join(', ') || 'Not set';
-      tr.append(approval(row.approved),enabled(row.enabled),node('td',display('platforms',row.platforms)),node('td',shares),node('td',String(catalog.creatives.filter(item => item.campaign_id === row.id).length)));
-    } else if (section === 'creatives') tr.append(approval(row.approved),enabled(row.enabled),node('td',display('platforms',row.platforms)),node('td',display('rotation_weight',row.rotation_weight)));
-    else if (section === 'sponsors') tr.append(enabled(row.enabled),node('td',String(catalog.campaigns.filter(item => item.sponsor_id === row.id).length)));
-    else tr.append(node('td',row.kind === 'creative' ? 'Creative draft' : 'Campaign draft'),node('td',localTime(row.updated_at)),node('td',String(row.revision)));
+      const shareCell = node('td'), percents = [...new Set((row.share_schedule || []).map(entry => entry.percent))];
+      if (percents.length === 1 && Number.isFinite(percents[0])) {
+        const bar = node('span',undefined,'share-bar'); bar.style.setProperty('--share',Math.max(0,Math.min(100,percents[0])) + '%');
+        shareCell.append(bar,node('span',percents[0] + '%'));
+      } else shareCell.textContent = shares;
+      tr.append(approval(row.approved),enabled(row.enabled),platforms(row.platforms),shareCell,node('td',String(catalog.creatives.filter(item => item.campaign_id === row.id).length),'num'));
+    } else if (section === 'creatives') tr.append(approval(row.approved),enabled(row.enabled),platforms(row.platforms),node('td',display('rotation_weight',row.rotation_weight),'num'));
+    else if (section === 'sponsors') tr.append(enabled(row.enabled),node('td',String(catalog.campaigns.filter(item => item.sponsor_id === row.id).length),'num'));
+    else tr.append(node('td',row.kind === 'creative' ? 'Creative draft' : 'Campaign draft'),node('td',localTime(row.updated_at)),node('td',String(row.revision),'num'));
     tr.onclick = event => { if (!event || event.target !== button) selectRecord(row.id); };
     $('records').append(tr);
   }
@@ -1177,11 +1184,6 @@ function render() {
   if (!catalog || !user) return;
   let archiveTabs = $('archive-section-tabs');
   if (!archiveTabs) {
-    if (!$('archive-picker-style')) {
-      const style = document.createElement('style'); style.id = 'archive-picker-style';
-      style.textContent = '#archive-section-tabs{background:#fff;border:1px solid #d3dfef;border-radius:16px;padding:5px;margin:0 0 22px;gap:4px}#archive-section-tabs button{background:transparent;color:#172747;border:0;border-radius:11px;padding:11px 22px}#archive-section-tabs button[aria-pressed="true"]{background:#cfe2fb;color:#172747}';
-      document.head.append(style);
-    }
     archiveTabs = node('nav',undefined,'tabs'); archiveTabs.id = 'archive-section-tabs';
     archiveTabs.setAttribute('aria-label','Archive sections');
     for (const [type,label] of [['sponsors','Sponsors'],['campaigns','Campaigns'],['creatives','Ad creatives'],['drafts','Drafts']]) {
@@ -1203,6 +1205,7 @@ function render() {
   $('campaign-subtotal').textContent = catalog.campaigns.filter(row => row.enabled && !row.archived).length + ' enabled · ' + catalog.campaigns.filter(row => row.archived).length + ' archived';
   $('creative-subtotal').textContent = catalog.creatives.filter(row => row.enabled && row.approved && !row.archived).length + ' approved and enabled';
   $('draft-subtotal').textContent = 'Not served to users';
+  document.querySelectorAll('.stats .stat').forEach((card,index) => card.classList.toggle('current',!archiveMode && ['campaigns','creatives','drafts'][index] === section));
   $('guide-sponsor-status').textContent = catalog.sponsors.filter(row => row.enabled && !row.archived).length + ' enabled';
   $('guide-campaign-status').textContent = catalog.campaigns.filter(row => row.enabled && row.approved && !row.archived).length + ' active';
   $('guide-creative-status').textContent = catalog.creatives.filter(row => row.enabled && row.approved && !row.archived).length + ' active';
