@@ -227,8 +227,9 @@ function detail(row) {
   ++resumeRequest; resumePanel = null;
   ++publishedPreviewRequest;
   ++rollbackRequest; rollbackPanel = null;
-  $('details').replaceChildren(node('h2', row.name || row.id,'workspace-title'));
-  $('details').append(node('p',row.archived ? 'Archived · Cannot serve ads' : row.enabled ? 'Enabled' : 'Disabled','record-state'));
+  const state = row.archived ? 'Archived \u00b7 Cannot serve ads' : [typeof row.approved === 'boolean' ? (row.approved ? 'Approved' : 'Not approved') : null,
+    row.enabled ? 'Enabled' : 'Disabled'].filter(Boolean).join(' \u00b7 ');
+  $('details').replaceChildren(detailHeader(row.name || row.id,row.id,state,row.archived ? '' : row.enabled ? 'on' : row.approved === false ? 'wait' : ''));
   const groups = section === 'campaigns' ? [
     ['Overview',['name','sponsor_id','approved','enabled']],
     ['Schedule',['start_at','end_at','share_schedule']],
@@ -249,13 +250,14 @@ function detail(row) {
   button.setAttribute('aria-pressed',String(title === detailTab));
   button.onclick = () => { detailTab = title; panes.forEach((pane,i) => pane.hidden = i !== index); buttons.forEach((tab,i) => tab.setAttribute('aria-pressed',String(i === index))); };
   panes.push(list); buttons.push(button); nav.append(button);
-  if (index === 0) detailField(list,'Record ID',row.id);
   for (const key of keys) {
     const value = row[key];
     const field = node('div',undefined,'detail-field' + (['share_schedule','creative_overrides'].includes(key) ? ' wide' : ''));
     field.append(node('dt',labels[key]));
     const item = node('dd');
-    if (key.endsWith('_url') && value && safeUrl(value)) {
+    if (['sponsor_id','campaign_id'].includes(key) && value != null) {
+      item.append(document.createTextNode(name(key === 'sponsor_id' ? 'sponsors' : 'campaigns',value)),node('span','ID: ' + value,'field-id'));
+    } else if (key.endsWith('_url') && value && safeUrl(value)) {
       const link = node('a',value); link.href = value; link.target = '_blank'; link.rel = 'noopener noreferrer'; item.append(link);
     } else if (['share_schedule','creative_overrides'].includes(key)) {
       if (!value?.length) item.textContent = value == null ? 'Not set' : 'None';
@@ -375,12 +377,37 @@ function detail(row) {
     };
     $('details').append(approve);
   }
-  if (section === 'creatives') $('details').append(node('p','Weights control creative rotation within the selected campaign, not the campaign\u2019s exposure share.','muted'));
+  if (section === 'creatives') $('details').append(node('p','Weights control creative rotation within the selected campaign, not the campaign\u2019s exposure share.','muted detail-note'));
+  arrangeDetailActions();
   recordActions(row,section === 'creatives' ? 'creative' : section === 'campaigns' ? 'campaign' : 'sponsor');
 }
+function detailHeader(title,id,status,tone) {
+  const head = node('div',undefined,'detail-head'), text = node('div');
+  text.append(node('h2',title,'workspace-title'),node('p',id,'record-id'));
+  head.append(text,node('span',status,'status-pill' + (tone ? ' ' + tone : '')));
+  return head;
+}
+// Gathers the panel's buttons into one row: everyday actions on the left, pausing on the right.
+function arrangeDetailActions() {
+  const details = $('details'), bar = node('div',undefined,'detail-actions');
+  const left = node('div',undefined,'action-group'), right = node('div',undefined,'action-group end');
+  for (const element of [...details.children]) {
+    if (element.matches('button.related')) (/^(Pause|Review sponsor pause)/.test(element.textContent) ? right : left).append(element);
+    else if (element.matches('div.related')) left.append(...element.children);
+    else if (element.matches('.detail-note')) right.append(element);
+  }
+  const first = left.querySelector('button');
+  if (first && /^(Edit as draft|Open draft)$/.test(first.textContent)) first.classList.add('primary');
+  if (left.children.length || right.children.length) { bar.append(left,right); details.append(bar); }
+}
+// Archive, restore and delete stay one click away, in a clearly labelled section.
+function moreActions(open) {
+  const box = node('details',undefined,'lifecycle-actions'); box.open = open;
+  box.append(node('summary','More actions: archive or delete')); return box;
+}
 function recordActions(row,kind) {
-  const area = node('div',undefined,'lifecycle-actions');
   const archived = row.archived === true;
+  const area = moreActions(archived);
   const archive = node('button',archived ? 'Restore from archive' : 'Archive ' + kind);
   archive.type = 'button'; archive.disabled = !archived && row.enabled !== false;
   const remove = node('button','Delete ' + kind,'danger'); remove.type = 'button'; remove.disabled = !archived;
@@ -1332,7 +1359,7 @@ function renderDrafts() {
   showSummary(renderTable(rows),rows.length,'drafts','Drafts are shown separately from catalog filters and do not serve ads.'); $('details').replaceChildren();
   const draft = currentDraft;
   if (!draft) { $('details').append(node('p','No drafts match this search.','empty')); return; }
-  $('details').append(node('h2',draft.name));
+  $('details').append(detailHeader(draft.name,draft.id,draft.status === 'archived' ? 'Archived draft' : draft.kind === 'creative' ? 'Creative draft' : 'Campaign draft',''));
   const metadata = node('dl');
   for (const [title,value] of [['Saved',localTime(draft.updated_at)],['Revision',String(draft.revision)],
     ['Staff ID',draft.updated_by],['Draft ID',draft.id],['Status',draft.status === 'archived' ? 'Archived' : draft.target_id ? 'Draft of existing record: ' + draft.target_id : 'Draft for a new record']]) {
@@ -1343,7 +1370,8 @@ function renderDrafts() {
   button.disabled = draft.status === 'archived';
   button.onclick = () => readDraft(draft.id, button);
   $('details').append(button);
-  const area = node('div',undefined,'lifecycle-actions');
+  arrangeDetailActions();
+  const area = moreActions(draft.status === 'archived');
   const archive = node('button',draft.status === 'archived' ? 'Restore draft' : 'Archive draft');
   archive.onclick = () => manageRecord('draft',draft.id,draft.status === 'archived' ? 'restore' : 'archive',area);
   area.append(archive);
