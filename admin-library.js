@@ -2109,7 +2109,8 @@ function resetLink() {
 }
 function handleUser(value) {
   ++generation; user = value; clearLibrary(); $('sign-out').hidden = !user;
-  $('account').textContent = user?.email ? 'Signed in: ' + user.email : 'Admin and ads-team access only';
+  $('account').textContent = user?.email || 'Admin and ads-team access only';
+  $('account').dataset.initial = user?.email ? user.email[0].toUpperCase() : '';
   if (emailLink) {
     $('email-submit').textContent = 'Confirm email and sign in'; $('email-retry').hidden = false;
     $('email-help').textContent = 'Enter the email address that received this link to finish signing in.';
