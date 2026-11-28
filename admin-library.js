@@ -55,6 +55,9 @@ let pendingMedia = {};
 let drafts = [], mediaLibrary = {folders:[],assets:[]}, editor = null, editorRead = null, dirty = false, draftBusy = false, draftRequest = 0;
 let section = 'campaigns', selected = null, archiveMode = false;
 let remembered = {}, detailTab = 'Overview';
+// Display-only paging: all records are already loaded; this limits how many rows are drawn at once.
+const PAGE_SIZE = 25;
+let visibleCount = PAGE_SIZE;
 let emailLink = isSignInWithEmailLink(auth, window.location.href) ? window.location.href : '';
 const labels = { name:'Name', sponsor_id:'Sponsor', campaign_id:'Campaign', enabled:'Enabled', approved:'Approved',
   logo_url:'Logo link', placement:'Placement', exam:'Exam', module:'Module', start_at:'Starts (inclusive)', end_at:'Ends (exclusive)',
@@ -113,7 +116,7 @@ function clearLibrary() {
   campaignPauseBusy = false; ++pauseRequest;
   invalidateReview();
   clearMediaPreview();
-  catalog = null; selected = null; drafts = []; editor = null; editorRead = null; dirty = false; draftBusy = false; ++draftRequest;
+  catalog = null; selected = null; visibleCount = PAGE_SIZE; drafts = []; editor = null; editorRead = null; dirty = false; draftBusy = false; ++draftRequest;
   $('review-draft').disabled = false;
   $('editor-fields').replaceChildren(); $('draft-editor').hidden = true; $('browse-panel').hidden = false; $('draft-status').textContent = '';
   $('library').hidden = true; $('loading').hidden = true; $('auth-panel').hidden = false;
@@ -1130,14 +1133,26 @@ function matchesStatus(row) {
   const status = $('record-status').value;
   return status === 'all' || status === 'archived' && row.archived === true || status === 'active' && row.archived !== true || status === 'approved' && row.approved === true || status === 'unapproved' && row.approved === false || status === 'awaiting' && row.approved === false && row.enabled === false && row.archived !== true || status === 'enabled' && row.enabled === true || status === 'disabled' && row.enabled === false;
 }
+function showSummary(shown, total, label, extra) {
+  const summary = $('summary');
+  summary.replaceChildren('Showing ' + shown + ' of ' + total + ' ' + label + (extra ? ' \u00b7 ' + extra : ''));
+  if (shown >= total) return;
+  const more = node('button','Show more','link-button'); more.type = 'button';
+  more.onclick = () => {
+    visibleCount = shown + PAGE_SIZE; render();
+    $('records').children[shown]?.querySelector('button')?.focus();
+  };
+  summary.append(' \u00b7 ',more);
+}
 function renderTable(rows) {
   const columns = section === 'campaigns' ? ['Campaign','Approval','Enabled','Platforms','Exposure share','Ad creatives'] :
     section === 'creatives' ? ['Ad creative','Approval','Enabled','Platforms','Rotation weight'] :
     section === 'sponsors' ? ['Sponsor','Enabled','Campaigns'] : ['Draft','Type','Saved','Revision'];
   const header = node('tr'); for (const title of columns) header.append(node('th',title));
   $('record-head').replaceChildren(header); $('records').replaceChildren();
-  if (!rows.length) { const tr = node('tr'), td = node('td','No records match these filters.','empty'); td.colSpan = columns.length; tr.append(td); $('records').append(tr); return; }
-  for (const row of rows) {
+  if (!rows.length) { const tr = node('tr'), td = node('td','No records match these filters.','empty'); td.colSpan = columns.length; tr.append(td); $('records').append(tr); return 0; }
+  const shown = Math.min(rows.length, Math.max(visibleCount, rows.findIndex(row => row.id === selected) + 1));
+  for (const row of rows.slice(0, shown)) {
     const tr = node('tr',undefined,row.id === selected ? 'selected' : '');
     const td = node('td'), button = node('button',row.name || row.id,'name-button');
     button.setAttribute('aria-pressed',String(row.id === selected)); button.onclick = () => selectRecord(row.id); td.append(button);
@@ -1156,6 +1171,7 @@ function renderTable(rows) {
     tr.onclick = event => { if (!event || event.target !== button) selectRecord(row.id); };
     $('records').append(tr);
   }
+  return shown;
 }
 function render() {
   if (!catalog || !user) return;
@@ -1203,8 +1219,7 @@ function render() {
   const currentRow = chooseRow(rows);
   for (const type of Object.keys(fields)) $('tab-' + type).setAttribute('aria-pressed',String(section === type && !archiveMode));
   $('campaign-filter').disabled = section === 'sponsors';
-  $('summary').textContent = rows.length + ' ' + section + ' \u00b7 ' + catalog.sponsors.length + ' sponsors, ' + catalog.campaigns.length + ' campaigns, ' + catalog.creatives.length + ' creatives in this ' + config.catalogLabel;
-  renderTable(rows);
+  showSummary(renderTable(rows),rows.length,section,catalog.sponsors.length + ' sponsors, ' + catalog.campaigns.length + ' campaigns, ' + catalog.creatives.length + ' creatives in this ' + config.catalogLabel);
   if (currentRow) detail(currentRow); else $('details').replaceChildren(node('p','No records match these filters.','empty'));
 }
 function renderMediaLibrary() {
@@ -1311,8 +1326,7 @@ function renderDrafts() {
   const rows = drafts.filter(matchesSearch).filter(row => status === 'all' ||
     status === 'archived' && row.status === 'archived' || status === 'active' && row.status === 'draft');
   const currentDraft = chooseRow(rows);
-  $('summary').textContent = rows.length + ' drafts \u00b7 Drafts are shown separately from catalog filters and do not serve ads.';
-  renderTable(rows); $('details').replaceChildren();
+  showSummary(renderTable(rows),rows.length,'drafts','Drafts are shown separately from catalog filters and do not serve ads.'); $('details').replaceChildren();
   const draft = currentDraft;
   if (!draft) { $('details').append(node('p','No drafts match this search.','empty')); return; }
   $('details').append(node('h2',draft.name));
@@ -2132,20 +2146,20 @@ $('sign-out').onclick = async () => {
   try { await signOut(auth); } catch { notice('Sign-out could not finish. Close this tab to end this session.',true); }
 };
 $('refresh').onclick = load;
-$('sponsor-filter').onchange = () => { if (!catalog) return; selected = null; updateCampaigns(); render(); };
-$('campaign-filter').onchange = () => { selected = null; render(); };
+$('sponsor-filter').onchange = () => { if (!catalog) return; selected = null; visibleCount = PAGE_SIZE; updateCampaigns(); render(); };
+$('campaign-filter').onchange = () => { selected = null; visibleCount = PAGE_SIZE; render(); };
 function switchSection(type) {
-  section = type; archiveMode = false; selected = null; detailTab = 'Overview'; $('library-search').value = ''; $('record-status').value = 'all'; render();
+  section = type; archiveMode = false; selected = null; visibleCount = PAGE_SIZE; detailTab = 'Overview'; $('library-search').value = ''; $('record-status').value = 'all'; render();
 }
 function switchArchive(type = section === 'media' ? 'campaigns' : section) {
-  section = type; archiveMode = true; selected = null; detailTab = 'Overview'; $('library-search').value = ''; $('record-status').value = 'archived'; render();
+  section = type; archiveMode = true; selected = null; visibleCount = PAGE_SIZE; detailTab = 'Overview'; $('library-search').value = ''; $('record-status').value = 'archived'; render();
 }
 for (const type of Object.keys(fields)) $('tab-' + type).onclick = () => switchSection(type);
 $('tab-media').onclick = () => switchSection('media');
 $('tab-archive').onclick = () => switchArchive();
-$('library-search').oninput = () => { selected = null; render(); };
-$('record-status').onchange = () => { selected = null; render(); };
-$('search-form').onsubmit = event => { event.preventDefault(); selected = null; render(); };
+$('library-search').oninput = () => { selected = null; visibleCount = PAGE_SIZE; render(); };
+$('record-status').onchange = () => { selected = null; visibleCount = PAGE_SIZE; render(); };
+$('search-form').onsubmit = event => { event.preventDefault(); selected = null; visibleCount = PAGE_SIZE; render(); };
 try { await setPersistence(auth,browserSessionPersistence); }
 catch { notice('Session storage is unavailable; continuing with the browser default sign-in session.',true); }
 onAuthStateChanged(auth,handleUser); ready = true; authControls(false);
