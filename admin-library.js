@@ -49,7 +49,7 @@ const removeUpload = httpsCallable(getFunctions(app, config.region), 'remove_ad_
 const fetchMediaLibrary = httpsCallable(getFunctions(app, config.region), 'get_media_library');
 const createMediaFolder = httpsCallable(getFunctions(app, config.region), 'create_media_folder_record');
 const moveMediaAsset = httpsCallable(getFunctions(app, config.region), 'move_media_asset_record');
-let uploadTask = null, previewUrl = null;
+let uploadTask = null, previewUrl = null, localPreviewUrls = {};
 let workflowBusy = false, publishProgress = null;
 let pendingMedia = {};
 let drafts = [], mediaLibrary = {folders:[],assets:[]}, editor = null, editorRead = null, dirty = false, draftBusy = false, draftRequest = 0;
@@ -1495,6 +1495,8 @@ function openEditor(draft) {
 function clearMediaPreview() {
   if (uploadTask) { uploadTask.abort(); uploadTask = null; }
   if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+  for (const url of Object.values(localPreviewUrls)) URL.revokeObjectURL(url);
+  localPreviewUrls = {};
 }
 function disclosure(title,subtitle,count) {
   const box = node('details',undefined,'disclosure wide');
@@ -1525,6 +1527,15 @@ function syncAdPreview() {
     text.textContent = value + (value && text.dataset.adCopy === 'cta_text' ? ' \u2192' : '');
     text.hidden = !value.trim();
   }
+  const format = copy.display_format === 'square' ? 'square' : 'fullscreen';
+  for (const screen of document.querySelectorAll('.ad-preview-screen')) screen.classList.toggle('square-format', format === 'square');
+}
+function showLocalMedia(file, slot, player) {
+  if (localPreviewUrls[slot]) URL.revokeObjectURL(localPreviewUrls[slot]);
+  const url = URL.createObjectURL(file); localPreviewUrls[slot] = url; player.replaceChildren();
+  const media = node(slot === 'video' ? 'video' : 'img'); media.src = url;
+  if (slot === 'video') { media.muted = true; media.autoplay = true; media.loop = true; media.playsInline = true; }
+  media.alt = file.name; player.append(media);
 }
 function uploadControls() {
   const box = disclosure('Private draft media','Image, video and video cover','3 uploads');
@@ -1569,6 +1580,7 @@ function uploadControls() {
       pendingMedia[slot] = selectedFile;
       dirty = true;
       status.textContent = selectedFile.name + ' selected. Save draft to upload and attach it.';
+      showLocalMedia(selectedFile,slot,player); syncAdPreview();
     };
     preview.onclick = () => previewMedia(slot,preview,status,player);
     removeSaved.onclick = () => removeSavedMedia(slot,removeSaved,preview,status,player);
