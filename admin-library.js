@@ -1254,6 +1254,7 @@ function render() {
 }
 function renderMediaLibrary() {
   archiveMode = false;
+  document.querySelectorAll('.stats .stat.current').forEach(card => card.classList.remove('current'));
   $('browse-title').textContent = 'Media library';
   $('browse-description').textContent = 'Private creative files organized by sponsor and folder.';
   $('library-search').placeholder = 'Search media by filename or ID';
